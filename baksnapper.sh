@@ -106,6 +106,7 @@ fi
 
 # Get the subvolume to backup
 subvolume=$(sudo snapper -c $config get-config | grep SUBVOLUME | awk '{ print $3 }')
+printv $verbose"subvolume=$subvolume"
 
 # List all the snapshots available
 snapshots=$(find $subvolume/.snapshots -mindepth 1 -maxdepth 1 -printf "%f ")
@@ -149,15 +150,14 @@ else
 fi
 
 if (( $prune == 1 )); then
-    subvolumes=$(echo $diff | grep -i $dest | awk '{ print $2 }')
-    printv $verbose "subvolumes to delete = $subvolumes"
-    for vol in $subvolumes
+    snapshots=$(echo $diff | grep -i $dest | awk '{ print $2 }')
+    printv $verbose "snapshots to delete = $snapshots"
+    for snapshot in $snapshots
     do
         # Add check that it only contains info.xml and snapshot 
-        echo "rm -r -- $vol"
+        echo "rm -r -- $snapshot"
     done
 fi
 
-printv $verbose"subvolume=$subvolume"
 
 
