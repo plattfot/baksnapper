@@ -1,20 +1,28 @@
 #! /bin/bash
 
-help="Usage: $0 [OPTIONS]... [PATH]\n"\
-"Backup snapper snapshot to [PATH] using btrfs incremental send and receive."\
+help="Usage: $0 [OPTIONS]... [PATH]\n\n"\
+"\tBackup snapper snapshot to [PATH] using btrfs incremental send and\n"\
+"\treceive.\n\n"\
 "Options:\n"\
-"\t-c <name>|--config=<name>\t Name of config.\n"\
-"\t-i |--init\t Initial backup, will send the whole snapshot.\n"\
-"\t-v |--verbose\t Verbose print out.\n"\
-"\t-h|--help\t Print this help and then exit.\n"\
+"\t-c <name> --config=<name>\t Name of config.\n"\
+"\t-i --init\t\t\t Initial backup, will send the whole snapshot.\n"\
+"\t-p --prune\t\t\t Prune the backups by deleting snapshots that \n"\
+"\t\t\t\t\t isn't in the source directory.\n"\
+"\t-a --all\t\t\t Send all snapshots in the source directory. \n"\
+"\t\t\t\t\t Default is to only send the last one.\n"\
+"\t-v --verbose\t\t\t Verbose print out.\n"\
+"\t-h --help\t\t\t Print this help and then exit.\n"\
 "Example:\n"\
 "\t$0 -c root /mnt/backup"\
 "Note:\n"\
-"This doesn't support option stacking e.g. -ic <name>. Instead you need to separate each option i.e. -i -c <name>\n"\
+"\tThis doesn't support option stacking e.g. -ic <name>. Instead you\n"\
+"\tneed to separate each option i.e. -i -c <name>\n"\
 "Also this need root to be able to backup"\
 "Exit status:\n"\
 " 0 if ok.\n"\
 " 1 if option error (e.g. wrong flag etc).\n"\
+"Author:\n"\
+"\tFredrik Salomonsson"\
 ""
 
 function throw_error {
@@ -29,8 +37,10 @@ function printv {
 }
 
 # Default values
-init=0
+init=0 
 verbose=0
+all=0 
+prune=0
 
 # Parse options
 while [[ $# > 0 ]]
@@ -57,6 +67,14 @@ case $key in
         echo -e $help
         exit 0
         ;;
+    -p|--prune)
+        prune=1
+        shift
+        ;;
+    -a|--all)
+        all=1
+        shift
+        ;;
     -*)
         #unknown option
         echo "[ERROR] Unknown option $1"
@@ -74,6 +92,8 @@ done
 printv $verbose "config=${config}"
 printv $verbose "dest=${dest}"
 printv $verbose "init=${init}"
+printv $verbose "prune=${prune}"
+printv $verbose "all=${all}"
 
 # Error checks
 if [[ -z $config ]]; then
@@ -93,13 +113,20 @@ snapshots_a=($snapshots)
 
 printv $verbose "snapshots=$snapshots"
 
-if [[ $init = 1 ]]; then
+src_root=$subvolume/.snapshots
+dest_root=$dest/$config
+
+if (( $all == 1 || $prune == 1)); then
+  diff=$(sudo diff $src_root $dest_root | grep -i "only in" | awk '{ print $3" "$4}')  
+fi
+
+if (( $init == 1 )); then
     echo "Initialize backup"
     snapshot=${snapshots_a[0]} 
     
     printv $verbose "snapshot=$snapshot"
-    dest_dir=$dest/$config/$snapshot
-    src_dir=$subvolume/.snapshots/$snapshot
+    dest_dir=$dest_root/$snapshot
+    src_dir=$src_root/$snapshot
 
     echo "mkdir $dest_dir"
     echo "cp $src_dir/info.xml $dest_dir"
@@ -119,6 +146,15 @@ else
     echo "mkdir $dest_dir"
     echo "cp $src_dir/info.xml $dest_dir"
     echo "sudo btrfs send -p $ref_dir/snapshot $src_dir/snapshot | btrfs receive $dest_dir"
+fi
+
+if (( $prune = 1 )); then
+    subvolumes=$(echo $diff | grep -i $config | awk '{ print $2 }')
+    for vol in $subvolumes
+    do
+        # Add check that it contains a info.xml and snapshot
+        echo "rm -r -- $vol"
+    done
 fi
 
 printv $verbose"subvolume=$subvolume"
