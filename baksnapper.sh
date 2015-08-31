@@ -148,11 +148,12 @@ else
     echo "sudo btrfs send -p $ref_dir/snapshot $src_dir/snapshot | btrfs receive $dest_dir"
 fi
 
-if (( $prune = 1 )); then
-    subvolumes=$(echo $diff | grep -i $config | awk '{ print $2 }')
+if (( $prune == 1 )); then
+    subvolumes=$(echo $diff | grep -i $dest | awk '{ print $2 }')
+    printv $verbose "subvolumes to delete = $subvolumes"
     for vol in $subvolumes
     do
-        # Add check that it contains a info.xml and snapshot
+        # Add check that it only contains info.xml and snapshot 
         echo "rm -r -- $vol"
     done
 fi
