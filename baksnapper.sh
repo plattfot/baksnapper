@@ -1,32 +1,38 @@
 #! /bin/bash
 
-help="Usage: $0 [OPTIONS]... [PATH]\n\n"\
-"\tBackup snapper snapshot to [PATH] using btrfs incremental send and\n"\
-"\treceive.\n\n"\
-"Options:\n"\
-"\t-c <name> --config=<name>\t Name of config.\n"\
-"\t-i --init\t\t\t Initial backup, will send the whole snapshot.\n"\
-"\t-p --prune\t\t\t Prune the backups by deleting snapshots that \n"\
-"\t\t\t\t\t isn't in the source directory.\n"\
-"\t-a --all\t\t\t Send all snapshots in the source directory. \n"\
-"\t\t\t\t\t Default is to only send the last one.\n"\
-"\t-v --verbose\t\t\t Verbose print out.\n"\
-"\t-h --help\t\t\t Print this help and then exit.\n"\
-"Example:\n"\
-"\t$0 -c root /mnt/backup"\
-"Note:\n"\
-"\tThis doesn't support option stacking e.g. -ic <name>. Instead you\n"\
-"\tneed to separate each option i.e. -i -c <name>\n"\
-"Also this need root to be able to backup"\
-"Exit status:\n"\
-" 0 if ok.\n"\
-" 1 if option error (e.g. wrong flag etc).\n"\
-"Author:\n"\
-"\tFredrik Salomonsson"\
-""
+read -rd '' help <<EOF
+Usage: $0 [OPTIONS]... [PATH]
+
+\tBackup snapper snapshot to [PATH] using btrfs incremental send and
+\treceive.
+
+Options:
+\t-c <name> --config=<name>\t Name of config.
+\t-p --prune\t\t\t Prune the backups by deleting snapshots that 
+\t\t\t\t\t isn't in the source directory.
+\t-a --all\t\t\t Send all snapshots in the source directory. 
+\t\t\t\t\t Default is to only send the last one.
+\t-v --verbose\t\t\t Verbose print out.
+\t-h --help\t\t\t Print this help and then exit.
+
+Example:
+\t$0 -c root /mnt/backup
+
+Note:
+\tThis doesn't support option stacking e.g. -ic <name>. Instead you
+\tneed to separate each option i.e. -i -c <name>
+Also this script needs root to be able to backup snapshots.
+
+Exit status:
+\t0 if ok.
+\t1 if option error (e.g. wrong flag etc).
+
+Author:
+\tFredrik Salomonsson
+EOF
 
 function throw_error {
-    echo -e "[ERROR] $1"
+    echo -e "[ERROR] $1" 1>&2
     exit 1
 }
 
@@ -46,10 +52,6 @@ function printv {
 all=0 
 prune=0
 verbose=0
-
-if [[ $USER != root ]]; then
-    throw_error "Need to be root to run this script!"
-fi
 
 # Parse options
 while [[ $# > 0 ]]
@@ -77,7 +79,7 @@ case $key in
         shift
         ;;
     -h|--help)
-        echo -e $help
+        echo -e "$help"
         exit 0
         ;;
     -*)
@@ -94,12 +96,11 @@ case $key in
 esac
 done
 
-printv $verbose "config=${config}"
-printv $verbose "dest=${dest}"
-printv $verbose "prune=${prune}"
-printv $verbose "all=${all}"
-
 # Error checks
+if [[ $USER != root ]]; then
+    throw_error "Need to be root to run this script!"
+fi
+
 if [[ -z $config ]]; then
     throw_error "You need to specify the config name to backup!"
 fi
@@ -107,6 +108,19 @@ fi
 if [[ -z $dest ]]; then
     throw_error "No path specified!"
 fi
+
+if [ ! -e $dest ]; then
+    mkdir -p $dest
+fi
+
+if [ ! -d $dest ]; then
+    throw_error "Backup path specified isn't a directory!"
+fi 
+
+printv $verbose "config=${config}"
+printv $verbose "dest=${dest}"
+printv $verbose "prune=${prune}"
+printv $verbose "all=${all}"
 
 # Get the subvolume to backup
 subvolume=$(snapper -c $config get-config | grep SUBVOLUME | awk '{ print $3 }')
@@ -144,11 +158,12 @@ if [[ -z $common ]]; then
     common=$snapshot
 fi
 
+# First argument is the reference snapshot and the second is the
+# snapshot to backup. It will only send the difference between the
+# two.
 function incremental_backup {
     echo "Incremental backup"
-
-    printv $verbose "reference=$1"
-    printv $verbose "snapshot=$2"
+    printv $verbose "Backing up snapshot $2 using snapshot $1 as reference."
 
     dest_dir=$dest/$config/$2
     src_dir=$subvolume/.snapshots/$2
@@ -160,12 +175,17 @@ function incremental_backup {
 }
 
 if [[ $all == 0 ]]; then
-    common_last=
-    if [[ ${common[(( ${#common[@]}-1 ))]} == ${snapshot[num_snapshots-1]} ]]; then
-        echo "Already synced the last snapshot"
+    common_last=${common[(( ${#common[@]}-1 ))]}
+    snapshot=${snapshots[num_snapshots-1]}
+
+    # Check that it's not already synced
+    if [[ $common_last == ${snapshot[num_snapshots-1]} ]]; then
+        throw_error "Already synced the last snapshot"
     fi
+
+    incremental_backup $common_last $snapshot
 else
-    echo "Sync all"
+
 fi
 
 # if (( $init == 1 )); then
