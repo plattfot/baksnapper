@@ -30,17 +30,26 @@ function throw_error {
     exit 1
 }
 
+function warning {
+    echo -e "[Warning] "
+}
+
+# If first argument is 1 print the rest. 
 function printv {
     if [[ $1 = 1 ]]; then
-        echo -e $2
+        shift
+        echo -e $@
     fi
 }
 
 # Default values
-init=0 
-verbose=0
 all=0 
 prune=0
+verbose=0
+
+if [[ $USER != root ]]; then
+    throw_error "Need to be root to run this script!"
+fi
 
 # Parse options
 while [[ $# > 0 ]]
@@ -51,10 +60,6 @@ case $key in
         config="${1#*=}"
         shift # past argument=value
         ;;
-    -i|--init)
-        init=1
-        shift
-        ;;
     -c)
         config="$2"
         shift 2
@@ -63,10 +68,6 @@ case $key in
         verbose=1
         shift
         ;;
-    -h|--help)
-        echo -e $help
-        exit 0
-        ;;
     -p|--prune)
         prune=1
         shift
@@ -74,6 +75,10 @@ case $key in
     -a|--all)
         all=1
         shift
+        ;;
+    -h|--help)
+        echo -e $help
+        exit 0
         ;;
     -*)
         #unknown option
@@ -91,7 +96,6 @@ done
 
 printv $verbose "config=${config}"
 printv $verbose "dest=${dest}"
-printv $verbose "init=${init}"
 printv $verbose "prune=${prune}"
 printv $verbose "all=${all}"
 
@@ -105,59 +109,109 @@ if [[ -z $dest ]]; then
 fi
 
 # Get the subvolume to backup
-subvolume=$(sudo snapper -c $config get-config | grep SUBVOLUME | awk '{ print $3 }')
-printv $verbose"subvolume=$subvolume"
+subvolume=$(snapper -c $config get-config | grep SUBVOLUME | awk '{ print $3 }')
+printv $verbose "subvolume=$subvolume"
 
 # List all the snapshots available
-snapshots=$(find $subvolume/.snapshots -mindepth 1 -maxdepth 1 -printf "%f ")
-snapshots_a=($snapshots)
 
-printv $verbose "snapshots=$snapshots"
+snapshots=($(find $subvolume/.snapshots -mindepth 1 -maxdepth 1 -printf "%f "))
+
+num_snapshots=${#snapshots[@]}
+if [[ $num_snapshots == 0 ]]; then
+    throw_error "No snapshots found."
+fi
 
 src_root=$subvolume/.snapshots
 dest_root=$dest/$config
+diff=$(diff $src_root $dest_root)
 
-if (( $all == 1 || $prune == 1)); then
-  diff=$(sudo diff $src_root $dest_root | grep -i "only in" | awk '{ print $3" "$4}')  
-fi
+common=($(echo "$diff"| sed -En "s|Common sub.*?${dest_root}/([0-9]+)|\1|p"| sort -g))
+only_in_src=($(echo "$diff"| sed -En "s|Only in ${src_root}: ([0-9]+)|\1|p"| sort -g))
+only_in_dest=($(echo "$diff"| sed -En "s|Only in ${dest_root}: ([0-9]+)|\1|p"| sort -g))
 
-if (( $init == 1 )); then
+if [[ -z $common ]]; then
     echo "Initialize backup"
-    snapshot=${snapshots_a[0]} 
+    snapshot=${snapshots[0]} 
     
     printv $verbose "snapshot=$snapshot"
     dest_dir=$dest_root/$snapshot
     src_dir=$src_root/$snapshot
 
-    echo "mkdir $dest_dir"
-    echo "cp $src_dir/info.xml $dest_dir"
-    echo "sudo btrfs send $src_dir/snapshot | btrfs receive $dest_dir"
-else
+    mkdir -p $dest_dir
+    cp $src_dir/info.xml $dest_dir
+    btrfs send $src_dir/snapshot| btrfs receive $dest_dir
+    
+    common=$snapshot
+fi
+
+function incremental_backup {
     echo "Incremental backup"
-    reference=${snapshots_a[0]}
-    num_snapshots=${#snapshots_a[@]}
-    snapshot=${snapshots_a[$num_snapshots-1]}
 
-    printv $verbose "reference=$reference"
-    printv $verbose "snapshot=$snapshot"
+    printv $verbose "reference=$1"
+    printv $verbose "snapshot=$2"
 
-    dest_dir=$dest/$config/$snapshot
-    src_dir=$subvolume/.snapshots/$snapshot
-    ref_dir=$subvolume/.snapshots/$reference
-    echo "mkdir $dest_dir"
-    echo "cp $src_dir/info.xml $dest_dir"
-    echo "sudo btrfs send -p $ref_dir/snapshot $src_dir/snapshot | btrfs receive $dest_dir"
+    dest_dir=$dest/$config/$2
+    src_dir=$subvolume/.snapshots/$2
+    ref_dir=$subvolume/.snapshots/$1
+
+    mkdir -p $dest_dir
+    cp $src_dir/info.xml $dest_dir
+    btrfs send -p $ref_dir/snapshot $src_dir/snapshot| btrfs receive $dest_dir
+}
+
+if [[ $all == 0 ]]; then
+    common_last=
+    if [[ ${common[(( ${#common[@]}-1 ))]} == ${snapshot[num_snapshots-1]} ]]; then
+        echo "Already synced the last snapshot"
+    fi
+else
+    echo "Sync all"
 fi
 
-if (( $prune == 1 )); then
-    snapshots=$(echo $diff | grep -i $dest | awk '{ print $2 }')
-    printv $verbose "snapshots to delete = $snapshots"
-    for snapshot in $snapshots
-    do
-        # Add check that it only contains info.xml and snapshot 
-        echo "rm -r -- $snapshot"
-    done
-fi
+# if (( $init == 1 )); then
+#     echo "Initialize backup"
+#     snapshot=${snapshots[0]} 
+    
+#     printv $verbose "snapshot=$snapshot"
+#     dest_dir=$dest_root/$snapshot
+#     src_dir=$src_root/$snapshot
+
+#     mkdir -p $dest_dir
+#     cp $src_dir/info.xml $dest_dir
+#     btrfs send $src_dir/snapshot| btrfs receive $dest_dir
+# else
+#     echo "Incremental backup"
+#     reference=${snapshots[0]}
+#     snapshot=${snapshots[$num_snapshots-1]}
+
+#     printv $verbose "reference=$reference"
+#     printv $verbose "snapshot=$snapshot"
+
+#     dest_dir=$dest/$config/$snapshot
+#     src_dir=$subvolume/.snapshots/$snapshot
+#     ref_dir=$subvolume/.snapshots/$reference
+
+#     mkdir -p $dest_dir
+#     cp $src_dir/info.xml $dest_dir
+#     btrfs send -p $ref_dir/snapshot $src_dir/snapshot| btrfs receive $dest_dir
+# fi
+
+# if (( $prune == 1 )); then
+#     snapshots=$(echo $diff | grep -i $dest | awk '{ print $2 }')
+#     printv $verbose "snapshots to delete = $snapshots"
+#     for snapshot in $snapshots
+#     do
+#         # Only delete directories containing info.xmp and snapshot
+#         content=($(find $dest_root/$snapshot -maxdepth 1 -mindepth 1 -printf "%f "))
+#         if [[ ${#content[@]} == 2 && ${content[0]} == "info.xml" && ${content[1]="snapshot"} ]]; then
+#             echo "Deleting snapshot $snapshot"
+#             btrfs subvolume delete $snapshot/snapshot
+#             rm -r -- $snapshot
+#         else
+#             warning "Snapshot $snapshot doesn't match a snapper snapshot, ignoring it."
+#         fi
+#     done
+# fi
 
 
 
