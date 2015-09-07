@@ -1,0 +1,9 @@
+2015-09-07 Fredrik Salomonsson <plattfot@gmail.com>
+	* 0.1.0 :
+	First release
+	Features:
+	Support for backing up the latest snapshot (Default behavior).
+	Support for backing up all snapshots in source dir (-a/--all).
+	Support for deleting specific snapshots from the backup (-d <list>/--delete <list>).
+	Support for pruning the backup directory by removing snapshots that
+	no longer exist in the source dir (-p/--prune)
