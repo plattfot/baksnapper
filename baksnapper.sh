@@ -37,7 +37,7 @@ function throw_error {
 }
 
 function warning {
-    echo -e "[Warning] "
+    echo -e "[Warning] $1" 1>&2
 }
 
 # If first argument is 1 print the rest. 
@@ -131,7 +131,7 @@ printv $verbose "subvolume=$subvolume"
 snapshots=($(find $subvolume/.snapshots -mindepth 1 -maxdepth 1 -printf "%f "))
 
 num_snapshots=${#snapshots[@]}
-if [[ $num_snapshots == 0 ]]; then
+if (( $num_snapshots == 0 )); then
     throw_error "No snapshots found."
 fi
 
@@ -143,6 +143,8 @@ common=($(echo "$diff"| sed -En "s|Common sub.*?${dest_root}/([0-9]+)|\1|p"| sor
 only_in_src=($(echo "$diff"| sed -En "s|Only in ${src_root}: ([0-9]+)|\1|p"| sort -g))
 only_in_dest=($(echo "$diff"| sed -En "s|Only in ${dest_root}: ([0-9]+)|\1|p"| sort -g))
 
+# Destination doesn't have any snapshots incommon with source.
+# Send the whole snapshot.
 if [[ -z $common ]]; then
     echo "Initialize backup"
     snapshot=${snapshots[0]} 
@@ -185,53 +187,43 @@ if [[ $all == 0 ]]; then
 
     incremental_backup $common_last $snapshot
 else
+    num_src_only=${#only_in_src[@]}
 
+    if [[ $num_src_only != 0 ]]; then
+        # Find the first common snapshot that is lower than the first
+        # source only snapshot. This will be the start of the incremental
+        # backup. If no one is found it will use the lowest common one.
+        first_src_snapshot=${only_in_src[0]}
+        idx=${#common[@]}-1
+        for (( ; idx >= 0; --idx ))
+        do
+            if [[ ${common[idx]} -lt $first_src_snapshot ]]; then
+                break
+            fi
+        done
+        incremental_backup ${common[idx]} $first_src_snapshot
+
+        for (( idx=1; idx < $num_src_only; ++idx ))
+        do
+            incremental_backup ${only_in_src[idx-1]} ${only_in_src[idx]}
+        done
+    else
+        printv $verbose "All snapshots are backed up."
+    fi
 fi
 
-# if (( $init == 1 )); then
-#     echo "Initialize backup"
-#     snapshot=${snapshots[0]} 
-    
-#     printv $verbose "snapshot=$snapshot"
-#     dest_dir=$dest_root/$snapshot
-#     src_dir=$src_root/$snapshot
-
-#     mkdir -p $dest_dir
-#     cp $src_dir/info.xml $dest_dir
-#     btrfs send $src_dir/snapshot| btrfs receive $dest_dir
-# else
-#     echo "Incremental backup"
-#     reference=${snapshots[0]}
-#     snapshot=${snapshots[$num_snapshots-1]}
-
-#     printv $verbose "reference=$reference"
-#     printv $verbose "snapshot=$snapshot"
-
-#     dest_dir=$dest/$config/$snapshot
-#     src_dir=$subvolume/.snapshots/$snapshot
-#     ref_dir=$subvolume/.snapshots/$reference
-
-#     mkdir -p $dest_dir
-#     cp $src_dir/info.xml $dest_dir
-#     btrfs send -p $ref_dir/snapshot $src_dir/snapshot| btrfs receive $dest_dir
-# fi
-
-# if (( $prune == 1 )); then
-#     snapshots=$(echo $diff | grep -i $dest | awk '{ print $2 }')
-#     printv $verbose "snapshots to delete = $snapshots"
-#     for snapshot in $snapshots
-#     do
-#         # Only delete directories containing info.xmp and snapshot
-#         content=($(find $dest_root/$snapshot -maxdepth 1 -mindepth 1 -printf "%f "))
-#         if [[ ${#content[@]} == 2 && ${content[0]} == "info.xml" && ${content[1]="snapshot"} ]]; then
-#             echo "Deleting snapshot $snapshot"
-#             btrfs subvolume delete $snapshot/snapshot
-#             rm -r -- $snapshot
-#         else
-#             warning "Snapshot $snapshot doesn't match a snapper snapshot, ignoring it."
-#         fi
-#     done
-# fi
-
-
-
+if (( $prune == 1 )); then
+    printv $verbose "snapshots to delete = $only_in_dest"
+    for snapshot in $only_in_dest
+    do
+        # Only delete directories containing info.xmp and snapshot
+        content=($(find $dest_root/$snapshot -maxdepth 1 -mindepth 1 -printf "%f "))
+        if [[ ${#content[@]} == 2 && ${content[0]} == "info.xml" && ${content[1]="snapshot"} ]]; then
+            echo "Deleting snapshot $snapshot"
+            btrfs subvolume delete $snapshot/snapshot
+            rm -r -- $snapshot
+        else
+            warning "Snapshot $snapshot doesn't match a snapper snapshot, ignoring it."
+        fi
+    done
+fi
