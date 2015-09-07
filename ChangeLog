@@ -7,3 +7,5 @@
 	Support for deleting specific snapshots from the backup (-d <list>/--delete <list>).
 	Support for pruning the backup directory by removing snapshots that
 	no longer exist in the source dir (-p/--prune)
+	Limitiations:
+	Only support for local backups i.e. unable to send over ssh to remote server.
