@@ -3,24 +3,33 @@
 read -rd '' help <<EOF
 Usage: $0 [OPTIONS]... [PATH]
 
-\tBackup snapper snapshot to [PATH] using btrfs incremental send and
-\treceive.
+Backup snapper snapshot to [PATH] using btrfs incremental send and
+receive.
 
 Options:
-\t-c <name> --config=<name>\t Name of config.
-\t-p --prune\t\t\t Prune the backups by deleting snapshots that 
-\t\t\t\t\t isn't in the source directory.
-\t-a --all\t\t\t Send all snapshots in the source directory. 
-\t\t\t\t\t Default is to only send the last one.
-\t-v --verbose\t\t\t Verbose print out.
-\t-h --help\t\t\t Print this help and then exit.
+\t-c <name>, --config <name>\tName of config.
+\t-a, --all\t\t\tSend all snapshots in the source directory. 
+\t\t\t\t\tDefault is to only send the last one.
+\t-p, --prune\t\t\tPrune the backups by deleting snapshots that 
+\t\t\t\t\tisn't in the source directory.
+\t-d <list>, --delete <list>\tDelete the snapshots at the backup
+\t\t\t\t\tlocation that are listed in the list then exit.
+\t\t\t\t\tThe list is comma separated.
+\t-v, --verbose\t\t\tVerbose print out.
+\t-h, --help\t\t\tPrint this help and then exit.
 
-Example:
-\t$0 -c root /mnt/backup
+Example: 
+$0 -c root /mnt/backup
+Backup the last root snapshot to /mnt/backup, if it is first time it
+will also send the first snapshot to use as reference for incremental
+backup.
+
+$0 -d 1,2,3,4 -c root /mnt/backup
+Delete the root snapshots 1,2,3 and 4 for from /mnt/backup
 
 Note:
-\tThis doesn't support option stacking e.g. -ic <name>. Instead you
-\tneed to separate each option i.e. -i -c <name>
+This doesn't support option stacking e.g. -ic <name>. Instead you
+need to separate each option i.e. -i -c <name>
 Also this script needs root to be able to backup snapshots.
 
 Exit status:
@@ -28,7 +37,7 @@ Exit status:
 \t1 if option error (e.g. wrong flag etc).
 
 Author:
-\tFredrik Salomonsson
+Fredrik "PlaTFooT" Salomonsson
 EOF
 
 function throw_error {
@@ -48,39 +57,41 @@ function printv {
     fi
 }
 
-# Default values
-all=0 
-prune=0
-verbose=0
+# Parameter values, postfix p_ to indicate that they are parameters.
+p_all=0 
+p_prune=0
+p_verbose=0
+p_delete=0
 
 # Parse options
 while [[ $# > 0 ]]
 do
 key=$1
 case $key in
-    --config=*)
-        config="${1#*=}"
-        shift # past argument=value
-        ;;
-    -c)
-        config="$2"
+    -c|--config)
+        p_config="$2"
         shift 2
         ;;
     -v|--verbose)
-        verbose=1
+        p_verbose=1
         shift
         ;;
     -p|--prune)
-        prune=1
+        p_prune=1
         shift
         ;;
     -a|--all)
-        all=1
+        p_all=1
         shift
         ;;
     -h|--help)
         echo -e "$help"
         exit 0
+        ;;
+    -d|--delete)
+        p_delete=1
+        p_delete_list=${2//,/ }
+        shift 2
         ;;
     -*)
         #unknown option
@@ -90,7 +101,7 @@ case $key in
         shift
         ;;
     *)
-        dest=$1
+        p_dest=$1
         shift
         ;;
 esac
@@ -101,129 +112,162 @@ if [[ $USER != root ]]; then
     throw_error "Need to be root to run this script!"
 fi
 
-if [[ -z $config ]]; then
+if [[ -z $p_config ]]; then
     throw_error "You need to specify the config name to backup!"
 fi
 
-if [[ -z $dest ]]; then
+if [[ -z $p_dest ]]; then
     throw_error "No path specified!"
 fi
 
-if [ ! -e $dest ]; then
-    mkdir -p $dest
+if [ ! -e $p_dest ]; then
+    mkdir -p $p_dest
 fi
 
-if [ ! -d $dest ]; then
+if [ ! -d $p_dest ]; then
     throw_error "Backup path specified isn't a directory!"
 fi 
 
-printv $verbose "config=${config}"
-printv $verbose "dest=${dest}"
-printv $verbose "prune=${prune}"
-printv $verbose "all=${all}"
+printv $p_verbose "p_config=${p_config}"
+printv $p_verbose "p_dest=${p_dest}"
+printv $p_verbose "p_prune=${p_prune}"
+printv $p_verbose "p_all=${p_all}"
+printv $p_verbose "p_delete=${p_delete}"
 
 # Get the subvolume to backup
-subvolume=$(snapper -c $config get-config | grep SUBVOLUME | awk '{ print $3 }')
-printv $verbose "subvolume=$subvolume"
-
-# List all the snapshots available
-
-snapshots=($(find $subvolume/.snapshots -mindepth 1 -maxdepth 1 -printf "%f "))
-
-num_snapshots=${#snapshots[@]}
-if (( $num_snapshots == 0 )); then
-    throw_error "No snapshots found."
-fi
+subvolume=$(snapper -c $p_config get-config | grep SUBVOLUME | awk '{ print $3 }')
+printv $p_verbose "subvolume=$subvolume"
 
 src_root=$subvolume/.snapshots
-dest_root=$dest/$config
+dest_root=$p_dest/$p_config
 diff=$(diff $src_root $dest_root)
 
-common=($(echo "$diff"| sed -En "s|Common sub.*?${dest_root}/([0-9]+)|\1|p"| sort -g))
-only_in_src=($(echo "$diff"| sed -En "s|Only in ${src_root}: ([0-9]+)|\1|p"| sort -g))
-only_in_dest=($(echo "$diff"| sed -En "s|Only in ${dest_root}: ([0-9]+)|\1|p"| sort -g))
-
-# Destination doesn't have any snapshots incommon with source.
-# Send the whole snapshot.
-if [[ -z $common ]]; then
-    echo "Initialize backup"
-    snapshot=${snapshots[0]} 
-    
-    printv $verbose "snapshot=$snapshot"
-    dest_dir=$dest_root/$snapshot
-    src_dir=$src_root/$snapshot
+# First argument is the snapshot to send.
+function single_backup {
+    printv $p_verbose "Sending snapshot $1."
+    local dest_dir=$dest_root/$1
+    local src_dir=$src_root/$1
 
     mkdir -p $dest_dir
     cp $src_dir/info.xml $dest_dir
     btrfs send $src_dir/snapshot| btrfs receive $dest_dir
-    
-    common=$snapshot
-fi
-
+}
 # First argument is the reference snapshot and the second is the
 # snapshot to backup. It will only send the difference between the
 # two.
 function incremental_backup {
     echo "Incremental backup"
-    printv $verbose "Backing up snapshot $2 using snapshot $1 as reference."
+    printv $p_verbose "Backing up snapshot $2 using snapshot $1 as reference."
 
-    dest_dir=$dest/$config/$2
-    src_dir=$subvolume/.snapshots/$2
-    ref_dir=$subvolume/.snapshots/$1
+    local dest_dir=$p_dest/$p_config/$2
+    local src_dir=$subvolume/.snapshots/$2
+    local ref_dir=$subvolume/.snapshots/$1
 
     mkdir -p $dest_dir
     cp $src_dir/info.xml $dest_dir
     btrfs send -p $ref_dir/snapshot $src_dir/snapshot| btrfs receive $dest_dir
 }
 
-if [[ $all == 0 ]]; then
-    common_last=${common[(( ${#common[@]}-1 ))]}
-    snapshot=${snapshots[num_snapshots-1]}
+# Main logic for the backup
+function backup {
 
-    # Check that it's not already synced
-    if [[ $common_last == ${snapshot[num_snapshots-1]} ]]; then
-        throw_error "Already synced the last snapshot"
+    # List all the snapshots available
+    local snapshots=($(find $subvolume/.snapshots -mindepth 1 -maxdepth 1 -printf "%f "))
+    local num_snapshots=${#snapshots[@]}
+
+    if [ $num_snapshots -eq 0 ]; then
+        throw_error "No snapshots found."
     fi
 
-    incremental_backup $common_last $snapshot
-else
-    num_src_only=${#only_in_src[@]}
+    # Get the snapshots the source and destination shares.
+    common=($(echo "$diff"| sed -En "s|Common sub.*?${dest_root}/([0-9]+)|\1|p"| sort -g))
+    # And what is only in source
+    only_in_src=($(echo "$diff"| sed -En "s|Only in ${src_root}: ([0-9]+)|\1|p"| sort -g))
+    
+    if [ ${#only_in_src[@]} -eq 0 ]; then
+        echo "Already backed up all snapshots"
+        exit 0
+    fi
+    
+    # Destination doesn't have any snapshots, send the whole snapshot.
+    if [ -z $common ]; then
+        echo "Initialize backup"
+        if [ $p_all -eq 1 ]; then
+            # Send the first snapshot as a whole then the rest will be
+            # sent incremental.
+            local snapshot=${snapshots[0]} 
+            single_backup $snapshot
+            common=$snapshot
+        else
+            # Just send the last one and exit.
+            local snapshot=${snapshots[$num_snapshots-1]}
+            single_backup $snapshot
+            exit 0
+        fi
+    fi
 
-    if [[ $num_src_only != 0 ]]; then
-        # Find the first common snapshot that is lower than the first
-        # source only snapshot. This will be the start of the incremental
-        # backup. If no one is found it will use the lowest common one.
-        first_src_snapshot=${only_in_src[0]}
-        idx=${#common[@]}-1
-        for (( ; idx >= 0; --idx ))
-        do
-            if [[ ${common[idx]} -lt $first_src_snapshot ]]; then
-                break
-            fi
-        done
-        incremental_backup ${common[idx]} $first_src_snapshot
+    if [[ $p_all == 0 ]]; then
+        local common_last=${common[(( ${#common[@]}-1 ))]}
+        local snapshot=${snapshots[num_snapshots-1]}
 
-        for (( idx=1; idx < $num_src_only; ++idx ))
-        do
-            incremental_backup ${only_in_src[idx-1]} ${only_in_src[idx]}
-        done
+        # Check that it's not already synced
+        if [[ $common_last == ${snapshot[num_snapshots-1]} ]]; then
+            throw_error "Already synced the last snapshot"
+        fi
+
+        incremental_backup $common_last $snapshot
     else
-        printv $verbose "All snapshots are backed up."
-    fi
-fi
+        local num_src_only=${#only_in_src[@]}
 
-if (( $prune == 1 )); then
-    printv $verbose "snapshots to delete = $only_in_dest"
-    for snapshot in $only_in_dest
+        if [[ $num_src_only != 0 ]]; then
+            # Find the first common snapshot that is lower than the first
+            # source only snapshot. This will be the start of the incremental
+            # backup. If no one is found it will use the lowest common one.
+            local first_src_snapshot=${only_in_src[0]}
+            local idx=${#common[@]}-1
+            for (( ; idx >= 0; --idx ))
+            do
+                if [[ ${common[idx]} -lt $first_src_snapshot ]]; then
+                    break
+                fi
+            done
+            incremental_backup ${common[idx]} $first_src_snapshot
+
+            for (( idx=1; idx < $num_src_only; ++idx ))
+            do
+                incremental_backup ${only_in_src[idx-1]} ${only_in_src[idx]}
+            done
+        else
+            printv $p_verbose "All snapshots are backed up."
+        fi
+    fi
+}
+
+# Arguments snapshots to delete
+function remove_snapshots {
+    printv $p_verbose "snapshots to delete = $1"
+    for snapshot in $@
     do
         # Only delete directories containing info.xmp and snapshot
-        content=($(find $dest_root/$snapshot -maxdepth 1 -mindepth 1 -printf "%f "))
+        local content=($(find $dest_root/$snapshot -maxdepth 1 -mindepth 1 -printf "%f " 2> /dev/null))
         if [[ ${#content[@]} == 2 && ${content[0]} == "info.xml" && ${content[1]="snapshot"} ]]; then
-            echo "Deleting snapshot $snapshot"
-            btrfs subvolume delete $snapshot/snapshot
-            rm -r -- $snapshot
+            printv $p_verbose "Deleting snapshot $snapshot"
+            btrfs subvolume delete $dest_root/$snapshot/snapshot
+            rm -r -- $dest_root/$snapshot
         else
             warning "Snapshot $snapshot doesn't match a snapper snapshot, ignoring it."
         fi
-    done
+    done    
+}
+
+# Main:
+if [ $p_delete -eq 0 ]; then
+    backup 
+else
+    remove_snapshots $p_delete_list
+fi
+
+if [ $p_prune -eq 1 ]; then
+    only_in_dest=($(echo "$diff"| sed -En "s|Only in ${dest_root}: ([0-9]+)|\1|p"| sort -g))
+    remove_snapshots $only_in_dest
 fi
