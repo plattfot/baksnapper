@@ -41,7 +41,7 @@ Author:
 Fredrik "PlaTFooT" Salomonsson
 EOF
 
-function throw_error {
+function error {
     echo -e "[ERROR] $1" 1>&2
     exit 1
 }
@@ -110,15 +110,15 @@ done
 
 # Error checks
 if [[ $USER != root ]]; then
-    throw_error "Need to be root to run this script!"
+    error "Need to be root to run this script!"
 fi
 
 if [[ -z $p_config ]]; then
-    throw_error "You need to specify the config name to backup!"
+    error "You need to specify the config name to backup!"
 fi
 
 if [[ -z $p_dest ]]; then
-    throw_error "No path specified!"
+    error "No path specified!"
 fi
 
 if [ ! -e $p_dest ]; then
@@ -126,7 +126,7 @@ if [ ! -e $p_dest ]; then
 fi
 
 if [ ! -d $p_dest ]; then
-    throw_error "Backup path specified isn't a directory!"
+    error "Backup path specified isn't a directory!"
 fi 
 
 printv $p_verbose "p_config=${p_config}"
@@ -177,7 +177,7 @@ function backup {
     local num_snapshots=${#snapshots[@]}
 
     if [ $num_snapshots -eq 0 ]; then
-        throw_error "No snapshots found."
+        error "No snapshots found."
     fi
 
     # Get the snapshots the source and destination shares.
@@ -185,7 +185,8 @@ function backup {
     # And what is only in source
     only_in_src=($(echo "$diff"| sed -En "s|Only in ${src_root}: ([0-9]+)|\1|p"| sort -g))
     
-    if [ ${#only_in_src[@]} -eq 0 ]; then
+    local num_src_only=${#only_in_src[@]}
+    if [ $num_src_only -eq 0 ]; then
         echo "Already backed up all snapshots"
         return 0
     fi
@@ -213,34 +214,28 @@ function backup {
 
         # Check that it's not already synced
         if [[ $common_last == ${snapshot[num_snapshots-1]} ]]; then
-            throw_error "Already synced the last snapshot"
+            error "Already synced the last snapshot."
         fi
 
         incremental_backup $common_last $snapshot
     else
-        local num_src_only=${#only_in_src[@]}
+        # Find the first common snapshot that is lower than the first
+        # source only snapshot. This will be the start of the incremental
+        # backup. If no one is found it will use the lowest common one.
+        local first_src_snapshot=${only_in_src[0]}
+        local idx=${#common[@]}-1
+        for (( ; idx >= 0; --idx ))
+        do
+            if [[ ${common[idx]} -lt $first_src_snapshot ]]; then
+                break
+            fi
+        done
+        incremental_backup ${common[idx]} $first_src_snapshot
 
-        if [[ $num_src_only != 0 ]]; then
-            # Find the first common snapshot that is lower than the first
-            # source only snapshot. This will be the start of the incremental
-            # backup. If no one is found it will use the lowest common one.
-            local first_src_snapshot=${only_in_src[0]}
-            local idx=${#common[@]}-1
-            for (( ; idx >= 0; --idx ))
-            do
-                if [[ ${common[idx]} -lt $first_src_snapshot ]]; then
-                    break
-                fi
-            done
-            incremental_backup ${common[idx]} $first_src_snapshot
-
-            for (( idx=1; idx < $num_src_only; ++idx ))
-            do
-                incremental_backup ${only_in_src[idx-1]} ${only_in_src[idx]}
-            done
-        else
-            printv $p_verbose "All snapshots are backed up."
-        fi
+        for (( idx=1; idx < $num_src_only; ++idx ))
+        do
+            incremental_backup ${only_in_src[idx-1]} ${only_in_src[idx]}
+        done
     fi
 }
 
