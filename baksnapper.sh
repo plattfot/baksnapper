@@ -20,16 +20,17 @@ Options:
 
 Example: 
 $0 -c root /mnt/backup
-Backup the last root snapshot to /mnt/backup, if it is first time it
-will also send the first snapshot to use as reference for incremental
-backup.
+Backup the last root snapshot to /mnt/backup, if it is the first time
+it will send the whole snapshot otherwise it will just send what have
+changed.
 
 $0 -d 1,2,3,4 -c root /mnt/backup
-Delete the root snapshots 1,2,3 and 4 for from /mnt/backup
+Delete the root's snapshots 1,2,3 and 4 for from /mnt/backup, will
+output a warning if a snapshot doesn't exist.
 
 Note:
-This doesn't support option stacking e.g. -ic <name>. Instead you
-need to separate each option i.e. -i -c <name>
+This doesn't support option stacking e.g. -pc <name>. Instead you
+need to separate each option i.e. -p -c <name>
 Also this script needs root to be able to backup snapshots.
 
 Exit status:
@@ -186,7 +187,7 @@ function backup {
     
     if [ ${#only_in_src[@]} -eq 0 ]; then
         echo "Already backed up all snapshots"
-        exit 0
+        return 0
     fi
     
     # Destination doesn't have any snapshots, send the whole snapshot.
