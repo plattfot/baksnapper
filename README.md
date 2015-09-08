@@ -35,13 +35,13 @@ What the latest release supports, and what the goals are for the next
 release.
 
 - [x] Backup to local destination.
-- [ ] Backup to remote destination using ssh.
+- [x] Backup to remote destination using ssh.
 - [x] Backup all snapshots.
 - [x] Backup last snapshot only.
-- [ ] Backup specific snapshot.
+- [x] Backup specific snapshot.
 - [x] Prune discarded snapshots.
 - [x] Delete specific snapshots.
-- [ ] Delete all snapshots.
+- [x] Delete all snapshots.
 
 ## Usage
 
