@@ -7,6 +7,7 @@ Baksnapper is a script for backing up snapshots created by the program snapper u
 - [Installation](#installation)
   - [From source](#from-source)
   - [Arch Linux](#arch-linux)
+- [Features](#features)
 - [Usage](#usage)
 - [Limitations](#limitations)
 
@@ -29,6 +30,19 @@ $ git clone git@bitbucket.org:plattfot/aur.git
 $ cd aur/baksnapper
 $ makepkg -ic
 ```
+## Features
+What the latest release supports, and what the goals are for the next
+release.
+
+[x] Backup to local destination.
+[ ] Backup to remote destination using ssh.
+[x] Backup all snapshots.
+[x] Backup last snapshot only.
+[ ] Backup specific snapshot.
+[x] Prune discarded snapshots.
+[x] Delete specific snapshots.
+[ ] Delete all snapshots.
+
 ## Usage
 
 First set up snapper to take snapshots of one of your subvolumes, see
