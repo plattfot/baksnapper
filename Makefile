@@ -12,8 +12,10 @@ $(PREFIX):
 install: | $(PREFIX)
 	@echo "Installing baksnapper to $(PREFIX)"
 	@cp baksnapper.sh $(PREFIX)/baksnapper
+	@cp baksnapperd.sh $(PREFIX)/baksnapperd
 
 .PHONY: uninstall
 uninstall:
 	@echo "Uninstalling baksnapper from $(PREFIX)"
 	@test -d $(PREFIX) && rm -f -- $(PREFIX)/baksnapper
+	@test -d $(PREFIX) && rm -f -- $(PREFIX)/baksnapperd

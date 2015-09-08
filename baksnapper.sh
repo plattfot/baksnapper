@@ -34,6 +34,9 @@ Options:
 \t\t\t\t\tlocation that are listed in the list then exit.
 \t\t\t\t\tThe list is comma separated.
 \t-s <address>, --ssh <address>\tBackup to a server at address <address>.
+\t--daemon <bin>\t\t\tSet the name of the baksnapperd, default is to call baksnapperd.
+\t--delete-all\t\t\tDelete all backup snapshots for config
+\t-S <snapshot>, --snapshot <snapshot>\tBackup specific snapshot, default is the last one.
 \t-v, --verbose\t\t\tVerbose print out.
 \t-h, --help\t\t\tPrint this help and then exit.
 
@@ -62,11 +65,18 @@ EOF
 
 function error {
     echo "[ERROR] $1" 1>&2
+    $ssh $baksnapperd fin
     exit 1
 }
 
 function warning {
     echo -e "[Warning] $1" 1>&2
+}
+
+# Clean up and exit
+function fin {
+    $baksnapperd fin
+    exit 0
 }
 
 # If first argument is 1 print the rest. 
@@ -82,6 +92,9 @@ p_all=0
 p_prune=0
 p_verbose=0
 p_delete=0
+p_delete_all=0
+p_baksnapperd="baksnapperd"
+
 ssh=""
 # Parse options
 while [[ $# > 0 ]]
@@ -113,9 +126,21 @@ case $key in
         p_delete_list=${2//,/ }
         shift 2
         ;;
+    --delete-all)
+        shift
+        p_delete_all=1
+        ;;
     -s|--ssh)
-        ssh_address="$2"
-        ssh="ssh $ssh_address"
+        p_ssh_address="$2"
+        ssh="ssh $p_ssh_address"
+        shift 2
+        ;;
+    -S|--snapshot)
+        p_snapshot=$2
+        shift 2
+        ;;
+    --daemon)
+        p_baksnapperd=$2
         shift 2
         ;;
     -*)
@@ -130,9 +155,8 @@ case $key in
 esac
 done
 
-
 # Error checks
-[[ $USER != root ]] && error "Need to be root to run this script!"
+#[[ $USER != root ]] && error "Need to be root to run this script!"
 [[ -z $p_config ]] && error "You need to specify the config name to backup!"
 [[ -z $p_dest ]] && error "No path specified!"
 
@@ -149,23 +173,35 @@ if [ -n "$ssh" ]; then
     [ $? -gt 0 ] && error "Unable to connect to $ssh"
 fi
 
-$ssh test ! -d $p_dest && error "Backup path specified isn't a directory!"
-$ssh test -d $dest_root || $ssh mkdir -p $dest_root
-
 printv $p_verbose "p_config=${p_config}"
 printv $p_verbose "p_dest=${p_dest}"
 printv $p_verbose "p_prune=${p_prune}"
 printv $p_verbose "p_all=${p_all}"
 printv $p_verbose "p_delete=${p_delete}"
+printv $p_verbose "p_baksnapperd=${p_baksnapperd}"
 printv $p_verbose "ssh = ${ssh}"
 
+baksnapperd="$ssh $p_baksnapperd"
+
+$baksnapperd init $p_dest
+[ $? -gt 0 ] && error "Problem initialize the daemon"
+
 # List all the snapshots available
-src_snapshots=($(find $src_root -mindepth 1 -maxdepth 1 -printf "%f " | sort -g))
+src_snapshots=($(find $src_root -mindepth 1 -maxdepth 1 -printf "%f\n" | sort -g))
 num_src_snapshots=${#src_snapshots[@]}
 
 # List all the snapshots at the backup location
-dest_snapshots=($(find $dest_root -mindepth 1 -maxdepth 1 -printf "%f " | sort -g))
+dest_snapshots=($($baksnapperd list-snapshots $p_config))
 num_dest_snapshots=${#dest_snapshots[@]}
+
+if [ -z $p_snapshot ]; then
+    p_snapshot=${src_snapshots[num_src_snapshots-1]}
+else
+    find $src_root/$p_snapshot &> /dev/null
+    [ $? -gt 0 ] && error "Snapshot $p_snapshot doesn't exist."
+fi
+
+echo "p_snapshot = $p_snapshot"
 
 printv $p_verbose "src_snapshots=${src_snapshots[@]}"
 printv $p_verbose "dest_snapshots=${dest_snapshots[@]}"
@@ -209,21 +245,22 @@ for (( ; idx_src < num_src_snapshots; ++idx_src ))
 do
     only_in_src+=(${src_snapshots[idx_src]})
 done
-################################################################################
 
 printv $p_verbose "common=" "${common[@]}"
 printv $p_verbose "only_in_src=" "${only_in_src[@]}"
 printv $p_verbose "only_in_dest=" "${only_in_dest[@]}"
+################################################################################
 
 # First argument is the snapshot to send.
 function single_backup {
     printv $p_verbose "Sending snapshot $1."
-    local dest_dir=$dest_root/$1
+
     local src_dir=$src_root/$1
 
-    mkdir -p $dest_dir
-    cp $src_dir/info.xml $dest_dir
-    btrfs send $src_dir/snapshot| btrfs receive $dest_dir
+    $baksnapperd create-snapshot $p_config $1
+    cat $src_dir/info.xml | $baksnapperd receive-info $p_config $1
+    btrfs send $src_dir/snapshot| $baksnapperd receive-snapshot $p_config $1
+    [ $? -gt 0 ] && error "Failed to send snapshot!"
 }
 # First argument is the reference snapshot and the second is the
 # snapshot to backup. It will only send the difference between the
@@ -232,13 +269,14 @@ function incremental_backup {
     echo "Incremental backup"
     printv $p_verbose "Backing up snapshot $2 using snapshot $1 as reference."
 
-    local dest_dir=$p_dest/$p_config/$2
     local src_dir=$subvolume/.snapshots/$2
     local ref_dir=$subvolume/.snapshots/$1
 
-    mkdir -p $dest_dir
-    cp $src_dir/info.xml $dest_dir
-    btrfs send -p $ref_dir/snapshot $src_dir/snapshot| btrfs receive $dest_dir
+    $baksnapperd create-snapshot $p_config $2
+    cat $src_dir/info.xml| $baksnapperd receive-info $p_config $2
+    btrfs send -p $ref_dir/snapshot $src_dir/snapshot| \
+        $baksnapperd receive-snapshot $p_config $2
+    [ $? -gt 0 ] && error "Failed to send snapshot!"
 }
 
 # Main logic for the backup
@@ -263,23 +301,19 @@ function backup {
             single_backup $snapshot
             common=$snapshot
         else
-            # Just send the last one and exit.
-            local snapshot=${src_snapshots[$num_src_snapshots-1]}
-            single_backup $snapshot
-            exit 0
+            # Send the specified snapshot
+            single_backup $p_snapshot
+            fin
         fi
     fi
 
     if [[ $p_all == 0 ]]; then
-        local common_last=${common[(( ${#common[@]}-1 ))]}
-        local snapshot=${src_snapshots[num_src_snapshots-1]}
-
+        local common_last=${common[${#common[@]}-1]}
         # Check that it's not already synced
-        if [[ $common_last == ${snapshot[num_src_snapshots-1]} ]]; then
+        if [[ $common_last == $p_snapshot ]]; then
             error "Already synced the last snapshot."
         fi
-
-        incremental_backup $common_last $snapshot
+        incremental_backup $common_last $p_snapshot
     else
         # Find the first common snapshot that is lower than the first
         # source only snapshot. This will be the start of the incremental
@@ -303,31 +337,37 @@ function backup {
 
 # Arguments snapshots to delete
 function remove_snapshots {
-    printv $p_verbose "snapshots to delete = $1"
-    for snapshot in $@
-    do
-        # Only delete directories containing info.xmp and snapshot
-        local content=($(find $dest_root/$snapshot \
-                              -maxdepth 1 -mindepth 1 -printf "%f " 2> /dev/null))
-        if [[ ${#content[@]} == 2 && \
-              ${content[0]} == "info.xml" && \
-              ${content[1]}="snapshot" ]]; then
-            printv $p_verbose "Deleting snapshot $snapshot"
-            btrfs subvolume delete $dest_root/$snapshot/snapshot
-            rm -r -- $dest_root/$snapshot
-        else
-            warning "Snapshot $snapshot doesn't match a snapper snapshot, ignoring it."
-        fi
-    done    
+    printv $p_verbose "snapshots to delete = $@"
+    $baksnapperd remove_snapshots $p_config $@
 }
 
 # Main:
-if [ $p_delete -eq 0 ]; then
+if [ $p_delete_all -eq 1 ]; then
+    echo -n "Are you sure you want to delete all backup snapshots from $dest_root? (y/N): "
+    while true
+    do
+        read answer
+        case $answer in
+            y|Y)
+                remove_snapshots ${dest_snapshots[@]}
+                break
+                ;;
+            n|N|"")
+                fin
+                ;;
+            *)
+                echo -ne "Please answer y or n.\n(y/N): "
+                ;;
+        esac
+    done
+elif [ $p_delete -eq 0 ]; then
     backup 
 else
-    remove_snapshots $p_delete_list
+    remove_snapshots ${p_delete_list[@]}
 fi
 
 if [ $p_prune -eq 1 ]; then
-    remove_snapshots $only_in_dest
+    remove_snapshots ${only_in_dest[@]}
 fi
+
+fin
