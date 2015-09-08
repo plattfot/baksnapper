@@ -3,9 +3,15 @@ Baksnapper is a script for backing up snapshots created by the program snapper u
 
 **Disclaimer**: Baksnapper is still very new therefore it haven't been fully tested yet, so use with caution.
 
+## Table of content
+- [Installation](#installation)
+  - [From source](#from-source)
+  - [Arch Linux](#arch-linux)
+- [Usage](#usage)
+- [Limitations](#limitations)
 ## Installation
 
-**From source**
+### From source
 Clone the reposity
 ```bash
 $ git clone git@github.com:plattfot/baksnapper.git
@@ -15,7 +21,7 @@ $ make install PREFIX=<install dir>
 
 Default it will be installed in /usr/bin
 
-**Arch Linux**
+### Arch Linux
 Clone my aur repo and then build the package using the PKBUILD:
 ```bash
 $ git clone git@bitbucket.org:plattfot/aur.git
@@ -51,19 +57,19 @@ To remove backups that snapper has discarded add the flag -p/--prune:
 $ baksnapper --config home --all --prune /mnt/backup
 
 To delete specific backups from the backup directory, run:
+
+```bash
 $ baksnapper --config home /mnt/backup --delete 1,2,3,63 
+```
 
 This will only delete 1,2,3 and 63 if they only contain a info.xml
 file and a snapshot dir. Otherwise it will issue a warning and skip
 the directory.
 
 For help use the -h/--help flag
-
 ```bash
 $ baksnapper --help
 ```
-
-
 
 ## Limitations
 
