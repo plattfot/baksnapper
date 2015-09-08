@@ -9,6 +9,7 @@ Baksnapper is a script for backing up snapshots created by the program snapper u
   - [Arch Linux](#arch-linux)
 - [Usage](#usage)
 - [Limitations](#limitations)
+
 ## Installation
 
 ### From source
