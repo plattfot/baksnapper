@@ -7,22 +7,21 @@ Baksnapper is a script for backing up snapshots created by the program snapper u
 
 **From source**
 Clone the reposity
+```bash
 $ git clone git@github.com:plattfot/baksnapper.git
-Move into the directory
 $ cd baksnapper
-and run
 $ make install PREFIX=<install dir>
+```
 
 Default it will be installed in /usr/bin
 
 **Arch Linux**
-Clone my aur repo:
+Clone my aur repo and then build the package using the PKBUILD:
+```bash
 $ git clone git@bitbucket.org:plattfot/aur.git
-Then cd into baksnapper
 $ cd aur/baksnapper
-Then make the package and install it with
 $ makepkg -ic
-
+```
 ## Usage
 
 First set up snapper to take snapshots of one of your subvolumes, see
@@ -32,14 +31,17 @@ it for Arch Linux.
 For example if you want to back up you snapshots from your home
 subvolumes to an external hdd mounted at /mnt/backup, run
 
+```bash
 $ baksnapper -c home /mnt/backup
+```
 
 This will send the last snapshots of home to
 /mnt/backup/home/<snapshot nr>
 
 To backup all snapshots run:
-
+```bash
 $ baksnapper --config home --all /mnt/backup
+```
 
 This will basically mirror what's in /home/.snapshots to
 /mnt/backup/home.
@@ -57,7 +59,11 @@ the directory.
 
 For help use the -h/--help flag
 
+```bash
 $ baksnapper --help
+```
+
+
 
 ## Limitations
 
@@ -67,9 +73,16 @@ It can only backup locally, i.e. you cannot send backups over ssh to a
 remote server.
 
 You cannot pack option flags i.e:
+
+```bash
 $ baksnapper -apc home /mnt/backup
+```
+
 instead you have to do:
+
+```bash
 $ baksnapper -a -p -c home /mnt/backup
+```
 
 You cannot specify which snapshot to backup, it's either the last one
 or all of them.
