@@ -181,10 +181,16 @@ printv $p_verbose "p_delete=${p_delete}"
 printv $p_verbose "p_baksnapperd=${p_baksnapperd}"
 printv $p_verbose "ssh = ${ssh}"
 
-baksnapperd="$ssh $p_baksnapperd"
+if [ -z "$ssh" ]; then
+baksnapperd="$p_baksnapperd"
+else
+baksnapperd="$ssh"
+fi
 
 $baksnapperd init $p_dest
 [ $? -gt 0 ] && error "Problem initialize the daemon"
+$baksnapperd create-config $p_config
+[ $? -gt 0 ] && error "Problem creating config at backup location"
 
 # List all the snapshots available
 src_snapshots=($(find $src_root -mindepth 1 -maxdepth 1 -printf "%f\n" | sort -g))

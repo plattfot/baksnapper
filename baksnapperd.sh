@@ -16,7 +16,6 @@ function check-lock {
                                "Run init before calling any other command"
 }
 
-
 case "$1" in 
     init)
         shift
@@ -34,6 +33,11 @@ case "$1" in
         snapshots=$(find $(cat $BS_LOCK)/$1 -mindepth 1 -maxdepth 1 \
                          -printf "%f\n" | sort -g)
         echo "$snapshots"
+        ;;
+    create-config)
+        shift
+        check-lock
+        mkdir -p $(cat $BS_LOCK)/$1
         ;;
     create-snapshot)
         shift
@@ -79,6 +83,9 @@ case "$1" in
             fi
         done    
 
+        ;;
+    test-connection)
+        exit 0
         ;;
     *)
         error "Unrecognized command, bailing out!"
