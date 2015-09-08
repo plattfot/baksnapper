@@ -33,6 +33,7 @@ Options:
 \t-d <list>, --delete <list>\tDelete the snapshots at the backup
 \t\t\t\t\tlocation that are listed in the list then exit.
 \t\t\t\t\tThe list is comma separated.
+\t-s <address>, --ssh <address>\tBackup to a server at address <address>.
 \t-v, --verbose\t\t\tVerbose print out.
 \t-h, --help\t\t\tPrint this help and then exit.
 
@@ -60,7 +61,7 @@ Fredrik "PlaTFooT" Salomonsson
 EOF
 
 function error {
-    echo -e "[ERROR] $1" 1>&2
+    echo "[ERROR] $1" 1>&2
     exit 1
 }
 
@@ -81,7 +82,7 @@ p_all=0
 p_prune=0
 p_verbose=0
 p_delete=0
-
+ssh=""
 # Parse options
 while [[ $# > 0 ]]
 do
@@ -112,11 +113,14 @@ case $key in
         p_delete_list=${2//,/ }
         shift 2
         ;;
+    -s|--ssh)
+        ssh_address="$2"
+        ssh="ssh $ssh_address"
+        shift 2
+        ;;
     -*)
         #unknown option
-        echo "[ERROR] Unknown option $1"
-        echo -e $help
-        exit 1
+        error "Unknown option $1, see --help"
         shift
         ;;
     *)
@@ -126,32 +130,11 @@ case $key in
 esac
 done
 
+
 # Error checks
-if [[ $USER != root ]]; then
-    error "Need to be root to run this script!"
-fi
-
-if [[ -z $p_config ]]; then
-    error "You need to specify the config name to backup!"
-fi
-
-if [[ -z $p_dest ]]; then
-    error "No path specified!"
-fi
-
-if [ ! -e $p_dest ]; then
-    mkdir -p $p_dest
-fi
-
-if [ ! -d $p_dest ]; then
-    error "Backup path specified isn't a directory!"
-fi 
-
-printv $p_verbose "p_config=${p_config}"
-printv $p_verbose "p_dest=${p_dest}"
-printv $p_verbose "p_prune=${p_prune}"
-printv $p_verbose "p_all=${p_all}"
-printv $p_verbose "p_delete=${p_delete}"
+[[ $USER != root ]] && error "Need to be root to run this script!"
+[[ -z $p_config ]] && error "You need to specify the config name to backup!"
+[[ -z $p_dest ]] && error "No path specified!"
 
 # Get the subvolume to backup
 subvolume=$(snapper -c $p_config get-config | grep SUBVOLUME | awk '{ print $3 }')
@@ -159,7 +142,78 @@ printv $p_verbose "subvolume=$subvolume"
 
 src_root=$subvolume/.snapshots
 dest_root=$p_dest/$p_config
-diff=$(diff $src_root $dest_root)
+
+if [ -n "$ssh" ]; then
+    # Sanity check for ssh
+    $ssh -q exit
+    [ $? -gt 0 ] && error "Unable to connect to $ssh"
+fi
+
+$ssh test ! -d $p_dest && error "Backup path specified isn't a directory!"
+$ssh test -d $dest_root || $ssh mkdir -p $dest_root
+
+printv $p_verbose "p_config=${p_config}"
+printv $p_verbose "p_dest=${p_dest}"
+printv $p_verbose "p_prune=${p_prune}"
+printv $p_verbose "p_all=${p_all}"
+printv $p_verbose "p_delete=${p_delete}"
+printv $p_verbose "ssh = ${ssh}"
+
+# List all the snapshots available
+src_snapshots=($(find $src_root -mindepth 1 -maxdepth 1 -printf "%f " | sort -g))
+num_src_snapshots=${#src_snapshots[@]}
+
+# List all the snapshots at the backup location
+dest_snapshots=($(find $dest_root -mindepth 1 -maxdepth 1 -printf "%f " | sort -g))
+num_dest_snapshots=${#dest_snapshots[@]}
+
+printv $p_verbose "src_snapshots=${src_snapshots[@]}"
+printv $p_verbose "dest_snapshots=${dest_snapshots[@]}"
+################################################################################
+# Compare source and destination location and sort the snapshots into:
+# common: exist at both locations
+# only_in_src: only exist at the source
+# only_in_dest: only exist at the destination
+
+idx_src=0
+idx_dest=0
+
+common=()
+only_in_src=()
+only_in_dest=()
+
+# NOTE: the snapshots must be sorted in ascending order hence the
+# "sort -g" when getting the snapshots.
+while (( $idx_src < $num_src_snapshots && $idx_dest < $num_dest_snapshots ))
+do
+    if [ ${src_snapshots[idx_src]} -eq ${dest_snapshots[idx_dest]} ]; then
+        common+=(${src_snapshots[idx_src]})
+        ((++idx_src))
+        ((++idx_dest))
+    elif [ ${src_snapshots[idx_src]} -lt ${dest_snapshots[idx_dest]} ]; then
+        only_in_src+=(${src_snapshots[idx_src]})
+        ((++idx_src))
+    else
+        only_in_dest+=(${dest_snapshots[idx_dest]})
+        ((++idx_dest))
+    fi
+done
+
+# Add the rest to respective array.
+for (( ; idx_dest < num_dest_snapshots; ++idx_dest ))
+do
+    only_in_dest+=(${dest_snapshots[idx_dest]})
+done
+
+for (( ; idx_src < num_src_snapshots; ++idx_src ))
+do
+    only_in_src+=(${src_snapshots[idx_src]})
+done
+################################################################################
+
+printv $p_verbose "common=" "${common[@]}"
+printv $p_verbose "only_in_src=" "${only_in_src[@]}"
+printv $p_verbose "only_in_dest=" "${only_in_dest[@]}"
 
 # First argument is the snapshot to send.
 function single_backup {
@@ -189,19 +243,9 @@ function incremental_backup {
 
 # Main logic for the backup
 function backup {
-
-    # List all the snapshots available
-    local snapshots=($(find $subvolume/.snapshots -mindepth 1 -maxdepth 1 -printf "%f "))
-    local num_snapshots=${#snapshots[@]}
-
-    if [ $num_snapshots -eq 0 ]; then
+    if [ $num_src_snapshots -eq 0 ]; then
         error "No snapshots found."
     fi
-
-    # Get the snapshots the source and destination shares.
-    common=($(echo "$diff"| sed -En "s|Common sub.*?${dest_root}/([0-9]+)|\1|p"| sort -g))
-    # And what is only in source
-    only_in_src=($(echo "$diff"| sed -En "s|Only in ${src_root}: ([0-9]+)|\1|p"| sort -g))
     
     local num_src_only=${#only_in_src[@]}
     if [ $num_src_only -eq 0 ]; then
@@ -215,12 +259,12 @@ function backup {
         if [ $p_all -eq 1 ]; then
             # Send the first snapshot as a whole then the rest will be
             # sent incremental.
-            local snapshot=${snapshots[0]} 
+            local snapshot=${src_snapshots[0]} 
             single_backup $snapshot
             common=$snapshot
         else
             # Just send the last one and exit.
-            local snapshot=${snapshots[$num_snapshots-1]}
+            local snapshot=${src_snapshots[$num_src_snapshots-1]}
             single_backup $snapshot
             exit 0
         fi
@@ -228,10 +272,10 @@ function backup {
 
     if [[ $p_all == 0 ]]; then
         local common_last=${common[(( ${#common[@]}-1 ))]}
-        local snapshot=${snapshots[num_snapshots-1]}
+        local snapshot=${src_snapshots[num_src_snapshots-1]}
 
         # Check that it's not already synced
-        if [[ $common_last == ${snapshot[num_snapshots-1]} ]]; then
+        if [[ $common_last == ${snapshot[num_src_snapshots-1]} ]]; then
             error "Already synced the last snapshot."
         fi
 
@@ -263,8 +307,11 @@ function remove_snapshots {
     for snapshot in $@
     do
         # Only delete directories containing info.xmp and snapshot
-        local content=($(find $dest_root/$snapshot -maxdepth 1 -mindepth 1 -printf "%f " 2> /dev/null))
-        if [[ ${#content[@]} == 2 && ${content[0]} == "info.xml" && ${content[1]="snapshot"} ]]; then
+        local content=($(find $dest_root/$snapshot \
+                              -maxdepth 1 -mindepth 1 -printf "%f " 2> /dev/null))
+        if [[ ${#content[@]} == 2 && \
+              ${content[0]} == "info.xml" && \
+              ${content[1]}="snapshot" ]]; then
             printv $p_verbose "Deleting snapshot $snapshot"
             btrfs subvolume delete $dest_root/$snapshot/snapshot
             rm -r -- $dest_root/$snapshot
@@ -282,6 +329,5 @@ else
 fi
 
 if [ $p_prune -eq 1 ]; then
-    only_in_dest=($(echo "$diff"| sed -En "s|Only in ${dest_root}: ([0-9]+)|\1|p"| sort -g))
     remove_snapshots $only_in_dest
 fi
