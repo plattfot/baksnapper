@@ -169,7 +169,7 @@ dest_root=$p_dest/$p_config
 
 if [ -n "$ssh" ]; then
     # Sanity check for ssh
-    $ssh -q exit
+    $ssh -q test-connection
     [ $? -gt 0 ] && error "Unable to connect to $ssh"
 fi
 
