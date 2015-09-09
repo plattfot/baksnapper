@@ -42,7 +42,9 @@ release.
 - [x] Prune discarded snapshots.
 - [x] Delete specific snapshots.
 - [x] Delete all snapshots.
-
+- [ ] Config file
+- [ ] Generic systemd files
+- [x] Example systemd files
 ## Usage
 
 First set up snapper to take snapshots of one of your subvolumes, see
@@ -135,7 +137,7 @@ $ baksnapper --config home --all --ssh /mnt/backup
 
 ## Limitations
 
-Known limitations for version 1.0.0.
+Known limitations for version 0.2.0.
 
 You cannot pack option flags i.e:
 

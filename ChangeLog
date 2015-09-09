@@ -1,3 +1,11 @@
+2015-09-08 Fredrik Salomonsson <plattfot@gmail.com>
+	* 0.2.0 :
+	Split the script into two parts, baksnapper and baksnapperd.
+	Remote backup support via ssh, using option -s <address>, --ssh <address>.
+	Option to send specific snapshot with -S <number>, --snapshot <number>
+	Option to delete all snapshots with --delete-all
+	Option to specify name of baksnapperd when running it locally using --daemon flag.
+	Added template systemd files.
 2015-09-07 Fredrik Salomonsson <plattfot@gmail.com>
 	* 0.1.0 :
 	First release
