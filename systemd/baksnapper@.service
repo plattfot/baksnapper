@@ -1,0 +1,6 @@
+[Unit]
+Description=Backup %i snapper snapshots to local location
+
+[Service]
+Type=oneshot
+ExecStart=baksnapper --config %i --all --prune <destination>

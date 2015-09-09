@@ -1,0 +1,11 @@
+[Unit]
+Description=Run baksnapper-ssh@%i each night.
+
+[Timer]
+OnCalender=00:20
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+
+
