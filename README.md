@@ -135,6 +135,11 @@ by using the -s or --ssh flag. For example:
 $ baksnapper --config home --all --ssh /mnt/backup 
 ```
 
+**Tip:** If your are using a nonstandard ssh port you can specify it in the .ssh/config, for example
+```bash
+Host remote
+Port 666
+```
 ## Limitations
 
 Known limitations for version 0.2.0.
