@@ -9,6 +9,7 @@ Baksnapper is a script for backing up snapshots created by the program snapper u
   - [Arch Linux](#arch-linux)
 - [Features](#features)
 - [Usage](#usage)
+- [Remote backup over ssh](#remote-backup-over-ssh)
 - [Limitations](#limitations)
 
 ## Installation
@@ -20,7 +21,6 @@ $ git clone git@github.com:plattfot/baksnapper.git
 $ cd baksnapper
 $ make install PREFIX=<install dir>
 ```
-
 Default it will be installed in /usr/bin
 
 ### Arch Linux
@@ -85,13 +85,57 @@ For help use the -h/--help flag
 ```bash
 $ baksnapper --help
 ```
+## Remote backup over ssh
+
+In order to be able to backup to a remote location you first need to
+install baksnapper on the remote machine, or atleast copy over the
+baksnapperd script.
+
+Next up is to create a ssh key that baksnapper can use to access the
+remote machine.
+
+**Note:** that you need to run this as root, since baksnapper needs
+root access to copy the snapshots.
+
+```bash
+$ su -
+$ ssh-keygen -t rsa -b 4096 -C "$(whoami)@$(hostname)-$(date -I)"
+```
+
+Leave the passphrase blank and set the file to something like
+/home/username/.ssh/baksnapper_rsa
+
+Append the public key (the one you just created), to
+.ssh/authorized_keys for the root account on the **remote machine**.
+Open up the .ssh/authorized_keys file on the remote machine and
+prepend this to the key
+
+```
+command="baksnapperd $SSH_ORIGINAL_COMMAND"
+```
+
+Your file should look something like this after.
+```
+command="baksnapperd $SSH_ORIGINAL_COMMAND" ssh-rsa <BAKSNAPPERD-PUBLIC-KEY>
+```
+
+After that test that everything is working by running.
+```bash
+$ (ssh <remote machine> test-connection) && echo "Connection works"
+```
+
+It should print out "Connection works".
+
+If everything is working you can now use remote backup with baksnapper
+by using the -s or --ssh flag. For example:
+
+```bash
+$ baksnapper --config home --all --ssh /mnt/backup 
+```
 
 ## Limitations
 
-Known limitations for version 0.1.0.
-
-It can only backup locally, i.e. you cannot send backups over ssh to a
-remote server.
+Known limitations for version 1.0.0.
 
 You cannot pack option flags i.e:
 
@@ -105,7 +149,5 @@ instead you have to do:
 $ baksnapper -a -p -c home /mnt/backup
 ```
 
-You cannot specify which snapshot to backup, it's either the last one
-or all of them.
 
 
