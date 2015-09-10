@@ -1,5 +1,6 @@
 [Unit]
-Description=Backup %i snapper snapshots to local location
+Description=Backup %i snapper snapshots to remote location
+Requires=network.target
 
 [Service]
 Type=oneshot
