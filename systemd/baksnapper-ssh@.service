@@ -3,4 +3,4 @@ Description=Backup %i snapper snapshots to local location
 
 [Service]
 Type=oneshot
-ExecStart=baksnapper --config %i --all --prune --ssh <address> <destination>
+ExecStart=/usr/bin/baksnapper --config %i --all --prune --ssh <address> <destination>

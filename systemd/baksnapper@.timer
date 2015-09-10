@@ -2,7 +2,7 @@
 Description=Run baksnapper@%i each night
 
 [Timer]
-OnCalender=00:20
+OnCalendar=00:20
 Persistent=true
 
 [Install]
