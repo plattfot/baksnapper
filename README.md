@@ -10,6 +10,7 @@ Baksnapper is a script for backing up snapshots created by the program snapper u
 - [Features](#features)
 - [Usage](#usage)
 - [Remote backup over ssh](#remote-backup-over-ssh)
+- [Systemd]($systemd)
 - [Limitations](#limitations)
 
 ## Installation
@@ -43,7 +44,7 @@ release.
 - [x] Delete specific snapshots.
 - [x] Delete all snapshots.
 - [ ] Config file
-- [ ] Generic systemd files
+- [x] Generic systemd files
 - [x] Example systemd files
 ## Usage
 
@@ -140,9 +141,33 @@ $ baksnapper --config home --all --ssh /mnt/backup
 Host remote
 Port 666
 ```
+## Systemd
+
+Baksnapper also supplies a timer and service file so that you can use
+systemd to handle the backup.  Right now the systemd files are not
+installed by default when calling **make install**. To install them run
+
+```bash
+make systemd
+```
+
+That command will copy the unit files to /usr/lib/systemd/system and
+also copy the example config to /etc/baksnapper
+
+You will most likely need to create your own config files, and these are saved to /etc/baksnapper/
+Then all you need to do is start/enable the timer with the config as the template name.
+
+For example to use example.bsconf you simply call
+
+```bash
+systemctl start baksnapper@example.timer
+```
+
+It will look for the config file in /etc/baksnapper/.
+
 ## Limitations
 
-Known limitations for version 0.2.0.
+Known limitations for version 0.3.0.
 
 You cannot pack option flags i.e:
 
