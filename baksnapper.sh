@@ -90,6 +90,35 @@ p_delete_all=0
 p_baksnapperd="baksnapperd"
 
 ssh=""
+function read-config {
+
+    function get-value {
+        _value=$(echo $1 | sed -Ee 's/^[A-Z ]+=[ ]*(.*?)/\1/' -e 's/#.*//')
+    }
+
+    while read line; do
+        #echo "$line"
+        #pair=($(echo $line | tr '=' '\n'|sed -En 's/[[:space:]]*(.*?)[[:space:]]*/\1/p'))
+#        case ${pair[0]} in
+        case $line in
+            CONFIG*=*)
+                get-value "$line"
+                echo "config ->$_value"
+            ;;
+            PATH*=*)
+                get-value "$line"
+                echo "path ->$_value"
+            ;;
+            SSH*=*)
+                get-value "$line"
+                echo "ssh ->$_value"
+                ;;
+            *)
+                ;;
+        esac
+    done < $1
+}
+
 # Parse options
 while [[ $# > 0 ]]
 do
@@ -135,6 +164,10 @@ case $key in
         ;;
     --daemon)
         p_baksnapperd=$2
+        shift 2
+        ;;
+    --configfile)
+        read-config "$2"
         shift 2
         ;;
     -*)
