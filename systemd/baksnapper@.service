@@ -1,6 +1,8 @@
 [Unit]
-Description=Backup %i snapper snapshots to local location
+Description=Backup snapper snapshots to backup location described by the config file: %h/.config/baksnapper/%I
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/baksnapper --config %i --all --prune <destination>
+EnvironmentFile=%h/.config/baksnapper/%I
+ExecStart=/usr/bin/baksnapper --config ${CONFIG} --prune --all ${SSH} ${PATH} 
+

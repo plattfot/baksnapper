@@ -1,0 +1,15 @@
+# Example baksnapper config file
+
+# This must be placed in /root/.config/ in order for the baksnapper
+# service to find it.
+
+# Snapper config to backup
+CONFIG=root
+
+# Destination to backup to
+PATH=/mnt/backup
+
+# To backup to remote server. Uncomment this and replace 'localhost'
+# with the name of your server you want to backup to.
+#SSH=--ssh localhost
+
