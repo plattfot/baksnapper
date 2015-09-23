@@ -65,7 +65,6 @@ EOF
 
 function error {
     echo "[ERROR] $1" 1>&2
-    $ssh $baksnapperd fin
     exit 1
 }
 
@@ -73,11 +72,6 @@ function warning {
     echo -e "[Warning] $1" 1>&2
 }
 
-# Clean up and exit
-function fin {
-    $baksnapperd fin
-    exit 0
-}
 
 # If first argument is 1 print the rest. 
 function printv {
@@ -165,7 +159,7 @@ subvolume=$(snapper -c $p_config get-config | grep SUBVOLUME | awk '{ print $3 }
 printv $p_verbose "subvolume=$subvolume"
 
 src_root=$subvolume/.snapshots
-dest_root=$p_dest/$p_config
+dest_root="$p_dest/$p_config"
 
 if [ -n "$ssh" ]; then
     # Sanity check for ssh
@@ -187,9 +181,9 @@ else
 baksnapperd="$ssh"
 fi
 
-$baksnapperd init $p_dest
-[ $? -gt 0 ] && error "Problem initialize the daemon"
-$baksnapperd create-config $p_config
+# $baksnapperd init $p_dest
+# [ $? -gt 0 ] && error "Problem initialize the daemon"
+$baksnapperd create-config $dest_root
 [ $? -gt 0 ] && error "Problem creating config at backup location"
 
 # List all the snapshots available
@@ -197,7 +191,7 @@ src_snapshots=($(find $src_root -mindepth 1 -maxdepth 1 -printf "%f\n" | sort -g
 num_src_snapshots=${#src_snapshots[@]}
 
 # List all the snapshots at the backup location
-dest_snapshots=($($baksnapperd list-snapshots $p_config))
+dest_snapshots=($($baksnapperd list-snapshots $dest_root))
 num_dest_snapshots=${#dest_snapshots[@]}
 
 if [ -z $p_snapshot ]; then
@@ -206,8 +200,6 @@ else
     find $src_root/$p_snapshot &> /dev/null
     [ $? -gt 0 ] && error "Snapshot $p_snapshot doesn't exist."
 fi
-
-echo "p_snapshot = $p_snapshot"
 
 printv $p_verbose "src_snapshots=${src_snapshots[@]}"
 printv $p_verbose "dest_snapshots=${dest_snapshots[@]}"
@@ -263,9 +255,9 @@ function single_backup {
 
     local src_dir=$src_root/$1
 
-    $baksnapperd create-snapshot $p_config $1
-    cat $src_dir/info.xml | $baksnapperd receive-info $p_config $1
-    btrfs send $src_dir/snapshot| $baksnapperd receive-snapshot $p_config $1
+    $baksnapperd create-snapshot $dest_root $1
+    cat $src_dir/info.xml | $baksnapperd receive-info $dest_root $1
+    btrfs send $src_dir/snapshot| $baksnapperd receive-snapshot $dest_root $1
     [ $? -gt 0 ] && error "Failed to send snapshot!"
 }
 # First argument is the reference snapshot and the second is the
@@ -277,11 +269,12 @@ function incremental_backup {
 
     local src_dir=$subvolume/.snapshots/$2
     local ref_dir=$subvolume/.snapshots/$1
-
-    $baksnapperd create-snapshot $p_config $2
-    cat $src_dir/info.xml| $baksnapperd receive-info $p_config $2
+    echo "src_dir=$src_dir"
+    echo "ref_dir=$ref_dir"
+    $baksnapperd create-snapshot $dest_root $2
+    cat $src_dir/info.xml| $baksnapperd receive-info $dest_root $2
     btrfs send -p $ref_dir/snapshot $src_dir/snapshot| \
-        $baksnapperd receive-snapshot $p_config $2
+        $baksnapperd receive-snapshot $dest_root $2
     [ $? -gt 0 ] && error "Failed to send snapshot!"
 }
 
@@ -303,13 +296,15 @@ function backup {
         if [ $p_all -eq 1 ]; then
             # Send the first snapshot as a whole then the rest will be
             # sent incremental.
-            local snapshot=${src_snapshots[0]} 
+            local snapshot=${only_in_src[0]}
+            # Pop the one that got sent from the array.
+            only_in_src=("${only_in_src[@]:1}")
+            ((--num_src_only))
             single_backup $snapshot
             common=$snapshot
         else
             # Send the specified snapshot
             single_backup $p_snapshot
-            fin
         fi
     fi
 
@@ -344,7 +339,7 @@ function backup {
 # Arguments snapshots to delete
 function remove_snapshots {
     printv $p_verbose "snapshots to delete = $@"
-    $baksnapperd remove_snapshots $p_config $@
+    $baksnapperd remove_snapshots $dest_root $@
 }
 
 # Main:
@@ -359,7 +354,6 @@ if [ $p_delete_all -eq 1 ]; then
                 break
                 ;;
             n|N|"")
-                fin
                 ;;
             *)
                 echo -ne "Please answer y or n.\n(y/N): "
@@ -375,5 +369,3 @@ fi
 if [ $p_prune -eq 1 ]; then
     remove_snapshots ${only_in_dest[@]}
 fi
-
-fin

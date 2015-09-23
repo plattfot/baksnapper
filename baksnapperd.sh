@@ -11,42 +11,24 @@ function warning {
     echo -e "[Warning] $1" 1>&2
 }
 
-function check-lock {
-    [ ! -e $BS_LOCK ] && error "No lock file found, "\
-                               "Run init before calling any other command"
-}
-
 case "$1" in 
-    init)
-        shift
-        [ -e $BS_LOCK ] && error "Lock already exist. "\
-                                 "Cannot backup to multiple locations at once!"
-        [ -d $1 ] || error "Backup directory doesn't exist!"
-        echo $1 > $BS_LOCK
-        ;;
-    fin)
-        rm -f -- $BS_LOCK
-        ;;
     list-snapshots)
         shift
-        check-lock
-        snapshots=$(find $(cat $BS_LOCK)/$1 -mindepth 1 -maxdepth 1 \
+        snapshots=$(find $1 -mindepth 1 -maxdepth 1 \
                          -printf "%f\n" | sort -g)
         echo "$snapshots"
         ;;
     create-config)
         shift
-        check-lock
-        mkdir -p $(cat $BS_LOCK)/$1
+        mkdir -p $1
         ;;
     create-snapshot)
         shift
-        check-lock
-        mkdir -p $(cat $BS_LOCK)/$1/$2
+        mkdir -p $1/$2
         ;;
     receive-info)
         shift
-        info=$(cat $BS_LOCK)/$1/$2/info.xml
+        info=$1/$2/info.xml
         [ -e $info ] && rm -f -- $info
         touch $info
         # Read from stdin
@@ -57,17 +39,16 @@ case "$1" in
         ;;
     receive-snapshot)
         shift
-        check-lock
-        btrfs receive $(cat $BS_LOCK)/$1/$2
+        echo "$1/$2"
+        btrfs receive $1/$2
         ;;
     remove_snapshots)
         shift
-        check-lock
-        dest_root=$(cat $BS_LOCK)/$1
+        dest_root=$1
         shift
         for snapshot in $@
         do
-            # Only delete directories containing info.xmp and snapshot
+            # Only delete directories containing info.xml and snapshot
             content=($(find $dest_root/$snapshot \
                             -maxdepth 1 -mindepth 1 -printf "%f\n" 2> /dev/null | sort ))
             echo ${content[@]}
