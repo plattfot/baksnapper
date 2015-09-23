@@ -39,7 +39,6 @@ case "$1" in
         ;;
     receive-snapshot)
         shift
-        echo "$1/$2"
         btrfs receive $1/$2
         ;;
     remove_snapshots)
