@@ -4,7 +4,7 @@
 # service to find it.
 
 # Snapper config to backup
-CONFIG=root
+CONFIG = home # This is a inline comment
 
 # Destination to backup to
 PATH=/mnt/backup
