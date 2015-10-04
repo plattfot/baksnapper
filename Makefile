@@ -20,7 +20,7 @@ usage:
 	@echo "BSCONF_ROOT: Path to where the systemd service unit will look for"
 	@echo "             config files, default is PREFIX_ETC."
 
-$(PREFIX_BIN) $(PREFIX_LIB)/systemd/system $(PREFIX_ETC)/baksnapper:
+$(PREFIX_BIN) $(PREFIX_LIB)/systemd/system $(PREFIX_ETC)/baksnapper/example:
 	@install -d $@
 
 .PHONY: install bin systemd etc
@@ -36,6 +36,6 @@ systemd: etc | $(PREFIX_LIB)/systemd/system
 	     > $|/baksnapper@.service
 	@chmod 755 $|/baksnapper@.service
 
-etc: | $(PREFIX_ETC)/baksnapper
-	@install systemd/example.bsconf $|/
+etc: | $(PREFIX_ETC)/baksnapper/example
+	@install systemd/example.bsconf $|/root.bsconf
 
