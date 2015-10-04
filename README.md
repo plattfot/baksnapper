@@ -10,6 +10,7 @@ Baksnapper is a script for backing up snapshots created by the program snapper u
 - [Features](#features)
 - [Usage](#usage)
 - [Remote backup over ssh](#remote-backup-over-ssh)
+- [Config file](#config-file)
 - [Systemd]($systemd)
 - [Limitations](#limitations)
 
@@ -22,8 +23,20 @@ $ git clone git@github.com:plattfot/baksnapper.git
 $ cd baksnapper
 $ make install PREFIX=<install dir>
 ```
-Default the scripts will be installed in /usr/bin,
-the systemd files in /usr/lib/systemd/system and the config file in /etc/baksnapper
+
+Default the scripts will be installed in /usr/bin, the systemd files
+in /usr/lib/systemd/system and the config file in /etc/baksnapper/example. If
+you are only packaging up the source please change BSCONF_ROOT to
+where the final path for baksnapper/example will be. Otherwise the
+systemd unit files will not work.
+
+For example
+```bash
+$ make install PREFIX=pkg BSCONF_ROOT=/etc
+```
+
+Will install everything into the directory pkg, and the systemd unit
+file will search for the config files in /etc/baksnapper/. 
 
 ### Arch Linux
 Clone my aur repo and then build the package using the PKBUILD:
@@ -142,29 +155,44 @@ $ baksnapper --config home --all --ssh /mnt/backup
 Host remote
 Port 666
 ```
+## Config file
+
+It can be tiresome to pass the options to baksnapper all the time, you
+can therefore also create config files in which you specify the
+options you wish baksnapper to use. This is also what the systemd unit
+file is using, more on that later.
+To read a config file use the command line option -f <conf> or --configfile <conf>
+
+The config file syntax is pretty simple: <COMMAND> = <VALUE>
+\# for comments.
+
+For boolean parameters YES, yes, yes and 1 are interpret as on/true and
+anything else as off/false.
+
+The commands that are supported right now are:
+* CONFIG: The snapper config to backup. Same as -c, --config.
+* PATH: Destination to backup to.
+* SSH: Backup to remote location, same as -s, --ssh
+* PRUNE: Prune the backups by deleting snapshots that isn't in the source directory.
+       Same as -p, --prune
+* ALL: Send all snapshots in the soruce directory. Same as -a, --all
+* VERBOSE: Verbose print out, same as -v, --verbose.
+* DAEMON: Name of the baksnapper daemon, default is baksnapperd. Same as --daemon
+
+**Note:** Command line options will take precendence over config file options.
+
 ## Systemd
 
 Baksnapper also supplies a timer and service file so that you can use
-systemd to handle the backup.  Right now the systemd files are not
-installed by default when calling **make install**. To install them run
+systemd to handle the backup. 
+For example to use root.bsconf you simply call
 
 ```bash
-make systemd
+systemctl start baksnapper@root.bsconf.timer
 ```
 
-That command will copy the unit files to /usr/lib/systemd/system and
-also copy the example config to /etc/baksnapper
-
-You will most likely need to create your own config files, and these are saved to /etc/baksnapper/
-Then all you need to do is start/enable the timer with the config as the template name.
-
-For example to use example.bsconf you simply call
-
-```bash
-systemctl start baksnapper@example.timer
-```
-
-It will look for the config file in /etc/baksnapper/.
+Where it looks for config files depends on what BSCONF_ROOT was set to
+when installing the package, by default this will be /etc/baksnapper/. 
 
 ## Limitations
 
