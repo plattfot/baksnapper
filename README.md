@@ -22,7 +22,8 @@ $ git clone git@github.com:plattfot/baksnapper.git
 $ cd baksnapper
 $ make install PREFIX=<install dir>
 ```
-Default it will be installed in /usr/bin
+Default the scripts will be installed in /usr/bin,
+the systemd files in /usr/lib/systemd/system and the config file in /etc/baksnapper
 
 ### Arch Linux
 Clone my aur repo and then build the package using the PKBUILD:
@@ -43,7 +44,7 @@ release.
 - [x] Prune discarded snapshots.
 - [x] Delete specific snapshots.
 - [x] Delete all snapshots.
-- [ ] Config file
+- [x] Config file
 - [x] Generic systemd files
 - [x] Example systemd files
 ## Usage
