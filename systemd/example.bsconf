@@ -1,15 +1,25 @@
 # Example baksnapper config file
-
-# This must be placed in /root/.config/ in order for the baksnapper
-# service to find it.
+#
+# To make baksnapper read this config file use -f or --configfile and
+# specify the path to this file
+#
+# NOTE: Command line options takes precedence over those in config files
 
 # Snapper config to backup
-CONFIG = home # This is a inline comment
+CONFIG = root # This is an inline comment
 
-# Destination to backup to
-PATH=/mnt/backup
+# Destination to backup to,
+#PATH=/mnt/backup
 
 # To backup to remote server. Uncomment this and replace 'localhost'
 # with the name of your server you want to backup to.
-#SSH=--ssh localhost
+#SSH=localhost
+
+# YES, yes, Yes and 1 are recognized as true, rest as false
+#PRUNE  = NO
+#ALL    = NO
+#VERBOSE= NO
+
+# If the baksnapper daemon is called something else, change the name here.
+#DAEMON=baksnapperd
 

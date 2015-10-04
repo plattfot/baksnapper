@@ -96,22 +96,49 @@ function read-config {
         _value=$(echo $1 | sed -Ee 's/^[A-Z ]+=[ ]*(.*?)/\1/' -e 's/#.*//')
     }
 
+    function parse-bool {
+        # [[ "$1" =~ YES|yes|Yes|1 ]]
+        # _bool=$?
+        if [[ "$1" =~ YES|yes|Yes|1 ]]; then
+            _bool=1
+        else
+            _bool=0
+        fi
+    }
+
     while read line; do
-        #echo "$line"
-        #pair=($(echo $line | tr '=' '\n'|sed -En 's/[[:space:]]*(.*?)[[:space:]]*/\1/p'))
-#        case ${pair[0]} in
         case $line in
             CONFIG*=*)
                 get-value "$line"
-                echo "config ->$_value"
+                p_config=${p_config-"$_value"}
             ;;
             PATH*=*)
                 get-value "$line"
-                echo "path ->$_value"
+                p_dest=${p_dest-"$_value"}
             ;;
             SSH*=*)
                 get-value "$line"
-                echo "ssh ->$_value"
+                p_ssh_address=${p_ssh_address-"$_value"}
+                ssh=${ssh-"ssh $p_ssh_address"}
+                ;;
+            DAEMON*=*)
+                get-value "$line"
+                p_baksnapperd=${p_baksnapperd-"$_value"}
+                ;;
+            PRUNE*=*)
+                get-value "$line"
+                parse-bool "$_value"
+                p_prune=${p_prune-$_bool}
+                ;;
+            ALL*=*)
+                get-value "$line"
+                parse-bool "$_value"
+                p_all=${p_all-$_bool}
+                ;;
+            VERBOSE*=*)
+                get-value "$line"
+                parse-bool "$_value"
+                p_verbose=$p_all-$_bool}
                 ;;
             *)
                 ;;
@@ -166,7 +193,7 @@ case $key in
         p_baksnapperd=$2
         shift 2
         ;;
-    --configfile)
+    -f|--configfile)
         read-config "$2"
         shift 2
         ;;
@@ -187,6 +214,16 @@ done
 [[ -z $p_config ]] && error "You need to specify the config name to backup!"
 [[ -z $p_dest ]] && error "No path specified!"
 
+printv $p_verbose "p_config=${p_config}"
+printv $p_verbose "p_dest=${p_dest}"
+printv $p_verbose "p_prune=${p_prune}"
+printv $p_verbose "p_all=${p_all}"
+printv $p_verbose "p_delete=${p_delete}"
+printv $p_verbose "p_baksnapperd=${p_baksnapperd}"
+printv $p_verbose "ssh = ${ssh}"
+
+exit 0
+
 # Get the subvolume to backup
 subvolume=$(snapper -c $p_config get-config | grep SUBVOLUME | awk '{ print $3 }')
 printv $p_verbose "subvolume=$subvolume"
@@ -199,14 +236,6 @@ if [ -n "$ssh" ]; then
     $ssh -q test-connection
     [ $? -gt 0 ] && error "Unable to connect to $ssh"
 fi
-
-printv $p_verbose "p_config=${p_config}"
-printv $p_verbose "p_dest=${p_dest}"
-printv $p_verbose "p_prune=${p_prune}"
-printv $p_verbose "p_all=${p_all}"
-printv $p_verbose "p_delete=${p_delete}"
-printv $p_verbose "p_baksnapperd=${p_baksnapperd}"
-printv $p_verbose "ssh = ${ssh}"
 
 if [ -z "$ssh" ]; then
 baksnapperd="$p_baksnapperd"
