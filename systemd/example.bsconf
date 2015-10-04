@@ -8,7 +8,7 @@
 # Snapper config to backup
 CONFIG = root # This is an inline comment
 
-# Destination to backup to,
+# Destination to backup to, note must not contain ~ or any env variables
 #PATH=/mnt/backup
 
 # To backup to remote server. Uncomment this and replace 'localhost'
@@ -22,4 +22,5 @@ CONFIG = root # This is an inline comment
 
 # If the baksnapper daemon is called something else, change the name here.
 #DAEMON=baksnapperd
+
 
