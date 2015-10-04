@@ -364,6 +364,7 @@ function backup {
         else
             # Send the specified snapshot
             single_backup $p_snapshot
+            return 0
         fi
     fi
 
@@ -374,6 +375,7 @@ function backup {
             error "Already synced the last snapshot."
         fi
         incremental_backup $common_last $p_snapshot
+        return 0
     else
         # Find the first common snapshot that is lower than the first
         # source only snapshot. This will be the start of the incremental
