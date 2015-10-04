@@ -201,7 +201,7 @@ esac
 done
 
 # Error checks
-#[[ $USER != root ]] && error "Need to be root to run this script!"
+[[ $USER != root ]] && error "Need to be root to run this script!"
 [[ -z $p_config ]] && error "You need to specify the config name to backup!"
 [[ -z $p_dest ]] && error "No path specified!"
 
