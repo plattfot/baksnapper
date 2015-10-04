@@ -81,15 +81,6 @@ function printv {
     fi
 }
 
-# Parameter values, postfix p_ to indicate that they are parameters.
-p_all=0 
-p_prune=0
-p_verbose=0
-p_delete=0
-p_delete_all=0
-p_baksnapperd="baksnapperd"
-
-ssh=""
 function read-config {
 
     function get-value {
@@ -123,7 +114,7 @@ function read-config {
                 ;;
             DAEMON*=*)
                 get-value "$line"
-                p_baksnapperd=${p_baksnapperd-"$_value"}
+                p_baksnapperd=${p_baksnapperd-$(realpath $_value)}
                 ;;
             PRUNE*=*)
                 get-value "$line"
@@ -138,7 +129,7 @@ function read-config {
             VERBOSE*=*)
                 get-value "$line"
                 parse-bool "$_value"
-                p_verbose=$p_all-$_bool}
+                p_verbose=${p_verbose-$_bool}
                 ;;
             *)
                 ;;
@@ -214,6 +205,14 @@ done
 [[ -z $p_config ]] && error "You need to specify the config name to backup!"
 [[ -z $p_dest ]] && error "No path specified!"
 
+# Default values if they haven't been set by a config file or cl option.
+p_baksnapperd=${p_baksnapperd-"baksnapperd"}
+p_all=${p_all-0}
+p_prune=${p_prune-0}
+p_verbose=${p_verbose-0}
+p_delete=${p_delete-0}
+p_delete_all=${p_delete_all-0}
+
 printv $p_verbose "p_config=${p_config}"
 printv $p_verbose "p_dest=${p_dest}"
 printv $p_verbose "p_prune=${p_prune}"
@@ -221,7 +220,7 @@ printv $p_verbose "p_all=${p_all}"
 printv $p_verbose "p_delete=${p_delete}"
 printv $p_verbose "p_baksnapperd=${p_baksnapperd}"
 printv $p_verbose "ssh = ${ssh}"
-
+exit 0
 # Get the subvolume to backup
 subvolume=$(snapper -c $p_config get-config | grep SUBVOLUME | awk '{ print $3 }')
 printv $p_verbose "subvolume=$subvolume"

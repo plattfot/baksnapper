@@ -180,6 +180,9 @@ The commands that are supported right now are:
 * DAEMON: Name of the baksnapper daemon, default is baksnapperd. Same as --daemon
 
 **Note:** Command line options will take precendence over config file options.
+**Note:** No variable expansion is supported in the config files, for
+example you cannot for example type ~/backup, instead you need to
+expand ~ yourself i.e /home/bob/backup if $USER = bob.
 
 ## Systemd
 
@@ -196,7 +199,7 @@ when installing the package, by default this will be /etc/baksnapper/.
 
 ## Limitations
 
-Known limitations for version 0.3.0.
+Known limitations for version 0.4.0.
 
 You cannot pack option flags i.e:
 
@@ -209,6 +212,8 @@ instead you have to do:
 ```bash
 $ baksnapper -a -p -c home /mnt/backup
 ```
+
+Config files doesn't support variable expansion,
 
 
 
