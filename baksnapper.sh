@@ -222,8 +222,6 @@ printv $p_verbose "p_delete=${p_delete}"
 printv $p_verbose "p_baksnapperd=${p_baksnapperd}"
 printv $p_verbose "ssh = ${ssh}"
 
-exit 0
-
 # Get the subvolume to backup
 subvolume=$(snapper -c $p_config get-config | grep SUBVOLUME | awk '{ print $3 }')
 printv $p_verbose "subvolume=$subvolume"
