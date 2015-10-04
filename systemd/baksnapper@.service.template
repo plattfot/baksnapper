@@ -1,7 +1,8 @@
 [Unit]
-Description=Backup snapper snapshots to backup location described by the config file: %<BSCONF_ROOT>/baksnapper/%I
+Description=Backup snapper snapshots to backup location described by the config file: <BSCONF_ROOT>/baksnapper/%I
 
 [Service]
+User=root
 Type=oneshot
 ExecStart=/usr/bin/baksnapper --configfile <BSCONF_ROOT>/baksnapper/%I
 
