@@ -235,11 +235,12 @@ if [ -n "$ssh" ]; then
 fi
 
 if [ -z "$ssh" ]; then
-baksnapperd="$p_baksnapperd"
+    baksnapperd="$p_baksnapperd"
 else
-baksnapperd="$ssh"
+    baksnapperd="$ssh"
 fi
 
+printv $p_verbose "baksnapperd=$baksnapperd"
 # $baksnapperd init $p_dest
 # [ $? -gt 0 ] && error "Problem initialize the daemon"
 $baksnapperd create-config $dest_root
