@@ -1,3 +1,6 @@
+2016-03-07 Fredrik Salomonsson <plattfot@gmail.com>
+	* 0.3.0 :
+	Added support for libnotify to notify the user when baksnapper is running.
 2015-09-08 Fredrik Salomonsson <plattfot@gmail.com>
 	* 0.2.0 :
 	Split the script into two parts, baksnapper and baksnapperd.
