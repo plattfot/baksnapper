@@ -203,9 +203,22 @@ esac
 done
 
 # Error checks
-[[ $USER != root ]] && error "Need to be root to run this script!"
+#[[ $USER != root ]] && error "Need to be root to run this script!"
 [[ -z $p_config ]] && error "You need to specify the config name to backup!"
 [[ -z $p_dest ]] && error "No path specified!"
+
+if hash notify-send 2> /dev/null; then
+    has_notify=1
+fi
+
+function exit-msg {
+    notify-send -u critical "Done backing up $p_config. Safe to turn off computer."
+}
+
+if [ $has_notify -eq 1 ]; then
+    notify-send -u critical "Backing up $p_config. Do not turn off computer!"
+    trap exit-msg EXIT
+fi
 
 # Default values if they haven't been set by a config file or cl option.
 p_baksnapperd=${p_baksnapperd-"baksnapperd"}
