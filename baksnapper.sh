@@ -38,7 +38,9 @@ Options:
 \t-s <address>, --ssh <address>\tBackup to a server at address <address>.
 \t--daemon <bin>\t\t\tSet the name of the baksnapperd, default is to call baksnapperd.
 \t--delete-all\t\t\tDelete all backup snapshots for config
-\t-S <snapshot>, --snapshot <snapshot>\tBackup specific snapshot, default is the last one.
+\t-S <nr>, --snapshot <nr>\tBackup specific snapshot <nr>, default is the last one.
+\t-t <type>, --type <type>\tSpecify either to backup snapshots to a server (push) 
+\t\t\t\t\tor to backup snapshots from a server (pull). Default is to push.
 \t-v, --verbose\t\t\tVerbose print out.
 \t-h, --help\t\t\tPrint this help and then exit.
 
@@ -90,8 +92,6 @@ function read-config {
     }
 
     function parse-bool {
-        # [[ "$1" =~ YES|yes|Yes|1 ]]
-        # _bool=$?
         if [[ "$1" =~ YES|yes|Yes|1 ]]; then
             _bool=1
         else
@@ -132,6 +132,10 @@ function read-config {
                 get-value "$line"
                 parse-bool "$_value"
                 p_verbose=${p_verbose-$_bool}
+                ;;
+            TYPE*=*)
+                get-value "$line"
+                p_type=${p_type-$_value}
                 ;;
             *)
                 ;;
@@ -190,6 +194,10 @@ case $key in
         read-config "$2"
         shift 2
         ;;
+    -t|--type)
+        p_type=$2
+        shift 2
+        ;;
     -*)
         #unknown option
         error "Unknown option $1, see --help"
@@ -236,13 +244,6 @@ printv $p_verbose "p_delete=${p_delete}"
 printv $p_verbose "p_baksnapperd=${p_baksnapperd}"
 printv $p_verbose "ssh = ${ssh}"
 
-# Get the subvolume to backup
-subvolume=$(snapper -c $p_config get-config | grep SUBVOLUME | awk '{ print $3 }')
-printv $p_verbose "subvolume=$subvolume"
-
-src_root=$subvolume/.snapshots
-dest_root="$p_dest/$p_config"
-
 if [ -n "$ssh" ]; then
     # Sanity check for ssh
     $ssh -q test-connection
@@ -255,25 +256,48 @@ else
     baksnapperd="$ssh"
 fi
 
-printv $p_verbose "baksnapperd=$baksnapperd"
-# $baksnapperd init $p_dest
-# [ $? -gt 0 ] && error "Problem initialize the daemon"
-$baksnapperd create-config $dest_root
+case $p_type in
+    pull|PULL)
+        sender=$baksnapperd
+        receiver=$p_baksnapperd
+    ;;
+    push|PUSH)
+        sender=$p_baksnapperd
+        receiver=$baksnapperd
+    ;;
+    *)
+        error "Unknown type! $p_type"
+    ;;
+esac
+
+printv $p_verbose "sender=$sender"
+printv $p_verbose "receiver=$receiver"
+
+# Get the subvolume to backup
+#subvolume=$(snapper -c $p_config get-config | grep SUBVOLUME | awk '{ print $3 }')
+subvolume=$($sender list-snapper-snapshots $p_config)
+
+printv $p_verbose "subvolume=$subvolume"
+
+src_root=$subvolume/.snapshots
+dest_root="$p_dest/$p_config"
+
+$receiver create-config $dest_root
 [ $? -gt 0 ] && error "Problem creating config at backup location"
 
 # List all the snapshots available
-src_snapshots=($(find $src_root -mindepth 1 -maxdepth 1 -printf "%f\n" | sort -g))
+src_snapshots=($($sender list-snapshots $src_root))
 num_src_snapshots=${#src_snapshots[@]}
 
 # List all the snapshots at the backup location
-dest_snapshots=($($baksnapperd list-snapshots $dest_root))
+dest_snapshots=($($receiver list-snapshots $dest_root))
 num_dest_snapshots=${#dest_snapshots[@]}
 
 if [ -z $p_snapshot ]; then
     p_snapshot=${src_snapshots[num_src_snapshots-1]}
 else
-    find $src_root/$p_snapshot &> /dev/null
-    [ $? -gt 0 ] && error "Snapshot $p_snapshot doesn't exist."
+    $sender verify-snapshot $src_root/$p_snapshot
+    [ $? -gt 0 ] && exit 1
 fi
 
 printv $p_verbose "src_snapshots=${src_snapshots[@]}"
@@ -328,11 +352,9 @@ printv $p_verbose "only_in_dest=" "${only_in_dest[@]}"
 function single_backup {
     printv $p_verbose "Sending snapshot $1."
 
-    local src_dir=$src_root/$1
-
-    $baksnapperd create-snapshot $dest_root $1
-    cat $src_dir/info.xml | $baksnapperd receive-info $dest_root $1
-    btrfs send $src_dir/snapshot| $baksnapperd receive-snapshot $dest_root $1
+    $receiver create-snapshot $dest_root $1
+    $sender send-info $src_dir $1 | $receiver receive-info $dest_root $1
+    $sender send-snapshot $src_dir $1 | $receiver receive-snapshot $dest_root $1
     [ $? -gt 0 ] && error "Failed to send snapshot!"
 }
 # First argument is the reference snapshot and the second is the
@@ -346,10 +368,10 @@ function incremental_backup {
     local ref_dir=$subvolume/.snapshots/$1
     echo "src_dir=$src_dir"
     echo "ref_dir=$ref_dir"
-    $baksnapperd create-snapshot $dest_root $2
-    cat $src_dir/info.xml| $baksnapperd receive-info $dest_root $2
-    btrfs send -p $ref_dir/snapshot $src_dir/snapshot| \
-        $baksnapperd receive-snapshot $dest_root $2
+    $receiver create-snapshot $dest_root $2
+    $sender send-info $src_dir $2 | $receiver receive-info $dest_root $2
+    $sender send-incremental-snapshot $ref_dir $src_dir \
+        | $receiver receive-snapshot $dest_root $2
     [ $? -gt 0 ] && error "Failed to send snapshot!"
 }
 
@@ -416,7 +438,7 @@ function backup {
 # Arguments snapshots to delete
 function remove_snapshots {
     printv $p_verbose "snapshots to delete = $@"
-    $baksnapperd remove_snapshots $dest_root $@
+    $receiver remove_snapshots $dest_root $@
 }
 
 # Main:

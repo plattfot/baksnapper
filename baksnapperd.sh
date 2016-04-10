@@ -29,11 +29,16 @@ function warning {
 }
 
 case "$1" in 
-    list-snapshots)
+    list-snapshots) # List snapshots at backup location
         shift
-        snapshots=$(find $1 -mindepth 1 -maxdepth 1 \
-                         -printf "%f\n" | sort -g)
-        echo "$snapshots"
+        $(find $1 -mindepth 1 -maxdepth 1 -printf "%f\n" | sort -g)
+        ;;
+    list-snapper-snapshots) # List snapshots at source location
+        $(snapper -c $1 get-config | grep SUBVOLUME | awk '{ print $3 }')
+        ;;
+    verify-snapshot)
+        find $1 &> /dev/null
+        [ $? -gt 0 ] && error "Snapshot $p_snapshot doesn't exist."
         ;;
     create-config)
         shift
@@ -57,6 +62,18 @@ case "$1" in
     receive-snapshot)
         shift
         btrfs receive $1/$2
+        ;;
+    send-info)
+        shift
+        cat $1/$2/info.xml
+        ;;
+    send-snapshot)
+        shift
+        btrfs send $1/$2/snapshot
+        ;;
+    send-incremental-snapshot)
+        shift
+        btrfs send -p $1/snapshot $2/snapshot
         ;;
     remove_snapshots)
         shift
