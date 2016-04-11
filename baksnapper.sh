@@ -235,6 +235,7 @@ p_prune=${p_prune-0}
 p_verbose=${p_verbose-0}
 p_delete=${p_delete-0}
 p_delete_all=${p_delete_all-0}
+p_type=${p_type-"push"}
 
 printv $p_verbose "p_config=${p_config}"
 printv $p_verbose "p_dest=${p_dest}"
@@ -351,10 +352,9 @@ printv $p_verbose "only_in_dest=" "${only_in_dest[@]}"
 # First argument is the snapshot to send.
 function single_backup {
     printv $p_verbose "Sending snapshot $1."
-
     $receiver create-snapshot $dest_root $1
-    $sender send-info $src_dir $1 | $receiver receive-info $dest_root $1
-    $sender send-snapshot $src_dir $1 | $receiver receive-snapshot $dest_root $1
+    $sender send-info $src_root $1 | $receiver receive-info $dest_root $1
+    $sender send-snapshot $src_root $1 | $receiver receive-snapshot $dest_root $1
     [ $? -gt 0 ] && error "Failed to send snapshot!"
 }
 # First argument is the reference snapshot and the second is the

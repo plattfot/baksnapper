@@ -31,12 +31,14 @@ function warning {
 case "$1" in 
     list-snapshots) # List snapshots at backup location
         shift
-        $(find $1 -mindepth 1 -maxdepth 1 -printf "%f\n" | sort -g)
+        echo $(find $1 -mindepth 1 -maxdepth 1 -printf "%f\n" | sort -g)
         ;;
     list-snapper-snapshots) # List snapshots at source location
-        $(snapper -c $1 get-config | grep SUBVOLUME | awk '{ print $3 }')
+        shift
+        echo $(snapper -c $1 get-config | grep SUBVOLUME | awk '{ print $3 }')
         ;;
     verify-snapshot)
+        shift
         find $1 &> /dev/null
         [ $? -gt 0 ] && error "Snapshot $p_snapshot doesn't exist."
         ;;
