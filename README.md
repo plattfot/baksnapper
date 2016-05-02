@@ -60,6 +60,9 @@ release.
 - [x] Config file
 - [x] Generic systemd files
 - [x] Example systemd files
+- [x] Backup from remote destination using ssh (Pull) 
+- [ ] Run as none root user.
+
 ## Usage
 
 First set up snapper to take snapshots of one of your subvolumes, see
