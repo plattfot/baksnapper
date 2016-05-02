@@ -181,6 +181,9 @@ The commands that are supported right now are:
 * ALL: Send all snapshots in the soruce directory. Same as -a, --all
 * VERBOSE: Verbose print out, same as -v, --verbose.
 * DAEMON: Name of the baksnapper daemon, default is baksnapperd. Same as --daemon
+* TYPE: Define if it should push the backup or pull. Default is push. 
+  	Pull can be used to transfer a backup from a remote server to
+  	the current machine.
 
 **Note:** Command line options will take precendence over config file options.
 **Note:** No variable expansion is supported in the config files, for
