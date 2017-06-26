@@ -21,28 +21,33 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 read -rd '' help <<EOF
-Usage: $0 [OPTIONS]... [PATH]
+Usage: $0 [OPTIONS]... ([HOST]:)[PATH]
 
 Backup snapper snapshot to [PATH] using btrfs incremental send and
 receive.
 
 Options:
-\t-c <name>, --config <name>\tName of config.
-\t-a, --all\t\t\tSend all snapshots in the source directory. 
-\t\t\t\t\tDefault is to only send the last one.
-\t-p, --prune\t\t\tPrune the backups by deleting snapshots that 
-\t\t\t\t\tisn't in the source directory.
-\t-d <list>, --delete <list>\tDelete the snapshots at the backup
-\t\t\t\t\tlocation that are listed in the list then exit.
-\t\t\t\t\tThe list is comma separated.
-\t-s <address>, --ssh <address>\tBackup to a server at address <address>.
-\t--daemon <bin>\t\t\tSet the name of the baksnapperd, default is to call baksnapperd.
-\t--delete-all\t\t\tDelete all backup snapshots for config
-\t-S <nr>, --snapshot <nr>\tBackup specific snapshot <nr>, default is the last one.
-\t-t <type>, --type <type>\tSpecify either to backup snapshots to a server (push) 
-\t\t\t\t\tor to backup snapshots from a server (pull). Default is to push.
-\t-v, --verbose\t\t\tVerbose print out.
-\t-h, --help\t\t\tPrint this help and then exit.
+  -c/--config <name>\t\tName of config.
+  -a, --all\t\t\tSend all snapshots in the source directory. 
+  \t\t\t\tDefault is to only send the last one.
+  -p, --prune\t\t\tPrune the backups by deleting snapshots that 
+  \t\t\t\tisn't in the source directory.
+  -d/--delete <list>\t\tDelete the snapshots at the backup
+  \t\t\t\tlocation that are listed in the list then exit.
+  \t\t\t\tThe list is comma separated.
+  -C/--configfile <configfile>\tSpecify config file to read the options from.
+  -s/--ssh <address>\t\tBackup to remote server. (Deprecated)
+  \t\t\t\tuse <address>:<path> instead.
+  --daemon <bin>\t\tSet the name of the baksnapperd, 
+  \t\t\t\tdefault is to call baksnapperd.
+  --delete-all\t\t\tDelete all backup snapshots for config
+  -S/--snapshot <nr>\t\tBackup specific snapshot <nr>, default is the last one.
+  -t/--type <type>\t\tSpecify either to backup snapshots to a server (push) 
+  \t\t\t\tor to backup snapshots from a server (pull). 
+  \t\t\t\tDefault is to push.
+
+  -v, --verbose\t\t\tVerbose print out.
+  -h, --help\t\t\tPrint this help and then exit.
 
 Example: 
 $0 -c root /mnt/backup
@@ -85,6 +90,16 @@ function printv {
     fi
 }
 
+function parse-full-path {
+    if [[ $1 =~ "\(.*?\):\(.*\)" ]]; then
+        p_ssh_address=${BASH_REMATCH[1]}
+        ssh=${ssh-"ssh $p_ssh_address"}
+        p_dest=${BASH_REMATCH[2]}
+    else
+        p_dest=${p_dest-"$1"}
+    fi
+}
+
 function read-config {
 
     function get-value {
@@ -107,9 +122,10 @@ function read-config {
             ;;
             PATH*=*)
                 get-value "$line"
-                p_dest=${p_dest-"$_value"}
+                parse-full-path $_value
             ;;
             SSH*=*)
+                warning "SSH option is deprecated, use PATH=<address>:<path>."
                 get-value "$line"
                 p_ssh_address=${p_ssh_address-"$_value"}
                 ssh=${ssh-"ssh $p_ssh_address"}
@@ -178,6 +194,8 @@ case $key in
         p_delete_all=1
         ;;
     -s|--ssh)
+        warning "SSH option is deprecated, use PATH=<address>:<path>."
+
         p_ssh_address="$2"
         ssh="ssh $p_ssh_address"
         shift 2
@@ -190,7 +208,7 @@ case $key in
         p_baksnapperd=$2
         shift 2
         ;;
-    -f|--configfile)
+    -C|--configfile)
         read-config "$2"
         shift 2
         ;;
@@ -204,7 +222,7 @@ case $key in
         shift
         ;;
     *)
-        p_dest=$1
+        parse-full-path $1
         shift
         ;;
 esac
@@ -214,19 +232,6 @@ done
 #[[ $USER != root ]] && error "Need to be root to run this script!"
 [[ -z $p_config ]] && error "You need to specify the config name to backup!"
 [[ -z $p_dest ]] && error "No path specified!"
-
-if hash notify-send 2> /dev/null; then
-    has_notify=1
-fi
-
-function exit-msg {
-    notify-send -u critical "Done backing up $p_config. Safe to turn off computer."
-}
-
-if [ $has_notify -eq 1 ]; then
-    notify-send -u critical "Backing up $p_config. Do not turn off computer!"
-    trap exit-msg EXIT
-fi
 
 # Default values if they haven't been set by a config file or cl option.
 p_baksnapperd=${p_baksnapperd-"baksnapperd"}
@@ -244,6 +249,19 @@ printv $p_verbose "p_all=${p_all}"
 printv $p_verbose "p_delete=${p_delete}"
 printv $p_verbose "p_baksnapperd=${p_baksnapperd}"
 printv $p_verbose "ssh = ${ssh}"
+
+if hash notify-send 2> /dev/null; then
+    has_notify=1
+fi
+
+function exit-msg {
+    notify-send -u critical "Done backing up $p_config. Safe to turn off computer."
+}
+
+if [[ $has_notify == 1 && $p_list != 1 ]]; then
+    notify-send -u critical "Backing up $p_config. Do not turn off computer!"
+    trap exit-msg EXIT
+fi
 
 if [ -n "$ssh" ]; then
     # Sanity check for ssh
