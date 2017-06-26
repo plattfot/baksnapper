@@ -147,10 +147,10 @@ $ (ssh <remote machine> test-connection) && echo "Connection works"
 It should print out "Connection works".
 
 If everything is working you can now use remote backup with baksnapper
-by using the -s or --ssh flag. For example:
+by the syntax <remote address>:<path>
 
 ```bash
-$ baksnapper --config home --all --ssh /mnt/backup 
+$ baksnapper --config home --all my-remote-machine:/mnt/backup 
 ```
 
 **Tip:** If your are using a nonstandard ssh port you can specify it in the .ssh/config, for example
