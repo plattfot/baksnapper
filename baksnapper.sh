@@ -234,13 +234,15 @@ p_delete=${p_delete-0}
 p_delete_all=${p_delete_all-0}
 p_type=${p_type-"push"}
 
-printv $p_verbose "p_config=${p_config}"
-printv $p_verbose "p_dest=${p_dest}"
-printv $p_verbose "p_prune=${p_prune}"
-printv $p_verbose "p_all=${p_all}"
-printv $p_verbose "p_delete=${p_delete}"
-printv $p_verbose "p_baksnapperd=${p_baksnapperd}"
-printv $p_verbose "ssh = ${ssh}"
+regex='(.*?):(.*)'
+if [[ $p_dest =~ $regex ]]; then
+    echo "=MATCH="
+    ssh="ssh ${BASH_REMATCH[1]}"
+    dest="${BASH_REMATCH[2]}"
+else
+    echo "=NO MATCH="
+    dest=$p_dest
+fi
 
 if [ -n "$ssh" ]; then
     # Sanity check for ssh
@@ -278,7 +280,7 @@ subvolume=$($sender list-snapper-snapshots $p_config)
 printv $p_verbose "subvolume=$subvolume"
 
 src_root=$subvolume/.snapshots
-dest_root="$p_dest/$p_config"
+dest_root="$dest/$p_config"
 
 $receiver create-config $dest_root
 [ $? -gt 0 ] && error "Problem creating config at backup location"
