@@ -361,13 +361,9 @@ function incremental_backup {
     echo "Incremental backup"
     printv $p_verbose "Backing up snapshot $2 using snapshot $1 as reference."
 
-    local src_dir=$subvolume/.snapshots/$2
-    local ref_dir=$subvolume/.snapshots/$1
-    echo "src_dir=$src_dir"
-    echo "ref_dir=$ref_dir"
     $receiver create-snapshot $dest_root $2
-    $sender send-info $src_dir $2 | $receiver receive-info $dest_root $2
-    $sender send-incremental-snapshot $ref_dir $src_dir \
+    $sender send-info $src_root $2 | $receiver receive-info $dest_root $2
+    $sender send-incremental-snapshot $subvolume/.snapshots/{$1,$2} \
         | $receiver receive-snapshot $dest_root $2
     [ $? -gt 0 ] && error "Failed to send snapshot!"
 }
