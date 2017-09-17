@@ -215,15 +215,12 @@ done
 [[ -z $p_config ]] && error "You need to specify the config name to backup!"
 [[ -z $p_dest ]] && error "No path specified!"
 
-if hash notify-send 2> /dev/null; then
-    has_notify=1
-fi
-
 function exit-msg {
     notify-send -u critical "Done backing up $p_config. Safe to turn off computer."
 }
 
-if [ $has_notify -eq 1 ]; then
+# Only run notify-send if installed
+if [ hash notify-send 2> /dev/null ]; then
     notify-send -u critical "Backing up $p_config. Do not turn off computer!"
     trap exit-msg EXIT
 fi
