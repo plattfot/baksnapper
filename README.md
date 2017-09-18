@@ -84,15 +84,14 @@ To backup all snapshots run:
 $ baksnapper --config home --all /mnt/backup
 ```
 
-This will basically mirror what's in /home/.snapshots to
-/mnt/backup/home.
+This will mirror what's in /home/.snapshots to /mnt/backup/home.
 
 To remove backups that snapper has discarded add the flag -p/--prune:
-
+```bash
 $ baksnapper --config home --all --prune /mnt/backup
+```
 
 To delete specific backups from the backup directory, run:
-
 ```bash
 $ baksnapper --config home /mnt/backup --delete 1,2,3,63 
 ```
@@ -146,25 +145,27 @@ $ (ssh <remote machine> test-connection) && echo "Connection works"
 
 It should print out "Connection works".
 
-If everything is working you can now use remote backup with baksnapper
-by the syntax <remote address>:<path>
+If everything is working you can now use remote backup with
+baksnapper.  It uses the same syntax as scp,
+i.e. <address>:<path>. For example backup to machine named foo:
 
 ```bash
-$ baksnapper --config home --all my-remote-machine:/mnt/backup 
+$ baksnapper --config home --all foo:/mnt/backup 
 ```
 
-**Tip:** If your are using a nonstandard ssh port you can specify it in the .ssh/config, for example
+**Tip:** If your are using a nonstandard ssh port you can specify it
+in the .ssh/config, for example
 ```bash
-Host remote
+Host foo
 Port 666
 ```
 ## Config file
 
 It can be tiresome to pass the options to baksnapper all the time, you
-can therefore also create config files in which you specify the
+can therefore also create a config files in which you specify the
 options you wish baksnapper to use. This is also what the systemd unit
-file is using, more on that later.
-To read a config file use the command line option -f <conf> or --configfile <conf>
+file is using, more on that later.  To read a config file use the
+command line option -f <conf> or --configfile <conf>
 
 The config file syntax is pretty simple: <COMMAND> = <VALUE>
 \# for comments.
@@ -172,15 +173,17 @@ The config file syntax is pretty simple: <COMMAND> = <VALUE>
 For boolean parameters YES, yes, yes and 1 are interpret as on/true and
 anything else as off/false.
 
-The commands that are supported right now are:
+The supported options are:
 * CONFIG: The snapper config to backup. Same as -c, --config.
-* PATH: Destination to backup to.
-* SSH: Backup to remote location, same as -s, --ssh
+* PATH: Destination to backup to. 
 * PRUNE: Prune the backups by deleting snapshots that isn't in the source directory.
        Same as -p, --prune
 * ALL: Send all snapshots in the soruce directory. Same as -a, --all
 * VERBOSE: Verbose print out, same as -v, --verbose.
 * DAEMON: Name of the baksnapper daemon, default is baksnapperd. Same as --daemon
+* TYPE: Define if it should push the backup or pull. Default is push. 
+  	Pull can be used to transfer a backup from a remote server to
+  	the current machine.
 
 **Note:** Command line options will take precendence over config file options.
 **Note:** No variable expansion is supported in the config files, for

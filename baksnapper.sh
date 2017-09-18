@@ -3,7 +3,7 @@
 # Baksnapper - Backup snapper snapshots to backup location using
 # btrfs' incremental send and receive
 
-# Copyright (C) 2015  Fredrik Salomonsson
+# Copyright (C) 2015-2017  Fredrik Salomonsson
 
 # This file is part of baksnapper
 
@@ -21,47 +21,51 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 read -rd '' help <<EOF
-Usage: $0 [OPTIONS]... ([HOST]:)[PATH]
+Usage: $0 [OPTIONS...] [ADDRESS:]PATH
 
-Backup snapper snapshot to [PATH] using btrfs incremental send and
-receive.
+Backup snapper snapshot to PATH using btrfs incremental send and
+receive. ADDRESS is specified for remote backups.
 
 Options:
-  -c/--config <name>\t\tName of config.
-  -a, --all\t\t\tSend all snapshots in the source directory. 
-  \t\t\t\tDefault is to only send the last one.
-  -p, --prune\t\t\tPrune the backups by deleting snapshots that 
-  \t\t\t\tisn't in the source directory.
-  -d/--delete <list>\t\tDelete the snapshots at the backup
-  \t\t\t\tlocation that are listed in the list then exit.
-  \t\t\t\tThe list is comma separated.
-  -C/--configfile <configfile>\tSpecify config file to read the options from.
-  -s/--ssh <address>\t\tBackup to remote server. (Deprecated)
-  \t\t\t\tuse <address>:<path> instead.
-  --daemon <bin>\t\tSet the name of the baksnapperd, 
-  \t\t\t\tdefault is to call baksnapperd.
-  --delete-all\t\t\tDelete all backup snapshots for config
-  -S/--snapshot <nr>\t\tBackup specific snapshot <nr>, default is the last one.
-  -t/--type <type>\t\tSpecify either to backup snapshots to a server (push) 
-  \t\t\t\tor to backup snapshots from a server (pull). 
-  \t\t\t\tDefault is to push.
-
-  -v, --verbose\t\t\tVerbose print out.
-  -h, --help\t\t\tPrint this help and then exit.
+\t-c NAME, --config NAME\tName of config.
+\t-a, --all\t\t\tSend all snapshots in the source directory. 
+\t\t\t\t\tDefault is to only send the last one.
+\t-p, --prune\t\t\tPrune the backups by deleting snapshots that 
+\t\t\t\t\tisn't in the source directory.
+\t-d LIST, --delete LIST\tDelete the snapshots at the backup
+\t\t\t\t\tlocation that are listed in the list then exit.
+\t\t\t\t\tThe list is comma separated.
+\t-s ADDRESS, --ssh ADDRESS\tRemoved, use ADDRESS:PATH instead.
+\t--daemon BIN\t\t\tSet the name of the baksnapperd, default is to call baksnapperd.
+\t--delete-all\t\t\tDelete all backup snapshots for config
+\t-S NR, --snapshot NR\tBackup specific snapshot NR, default is the last one.
+\t-t TYPE, --type TYPE\tSpecify either to backup snapshots to a server (push) 
+\t\t\t\t\tor to backup snapshots from a server (pull). Default is to push.
+\t-v, --verbose\t\t\tVerbose print out.
+\t-h, --help\t\t\tPrint this help and then exit.
+\t--version\t\tPrint version and then exit
 
 Example: 
+
+1)
 $0 -c root /mnt/backup
 Backup the last root snapshot to /mnt/backup, if it is the first time
 it will send the whole snapshot otherwise it will just send what have
 changed.
 
+2)
 $0 -d 1,2,3,4 -c root /mnt/backup
 Delete the root's snapshots 1,2,3 and 4 for from /mnt/backup, will
 output a warning if a snapshot doesn't exist.
 
+3)
+$0 -c root foo:/mnt/backup
+Same as example 1 except it will send the backups to the remote
+machine named foo.
+
 Note:
-This doesn't support option stacking e.g. -pc <name>. Instead you
-need to separate each option i.e. -p -c <name>
+This doesn't support option stacking e.g. -pc NAME. Instead you
+need to separate each option i.e. -p -c NAME
 Also this script needs root to be able to backup snapshots.
 
 Exit status:
@@ -70,6 +74,16 @@ Exit status:
 
 Author:
 Fredrik "PlaTFooT" Salomonsson
+EOF
+
+read -rd '' version <<EOF
+baksnapper (baksnapper) 0.7.0
+Copyright (C) 2017  Fredrik Salomonsson
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+Written by Fredrik "PlaTFooT" Salomonsson
 EOF
 
 function error {
@@ -124,12 +138,6 @@ function read-config {
                 get-value "$line"
                 parse-full-path $_value
             ;;
-            SSH*=*)
-                warning "SSH option is deprecated, use PATH=<address>:<path>."
-                get-value "$line"
-                p_ssh_address=${p_ssh_address-"$_value"}
-                ssh=${ssh-"ssh $p_ssh_address"}
-                ;;
             DAEMON*=*)
                 get-value "$line"
                 p_baksnapperd=${p_baksnapperd-$_value}
@@ -194,11 +202,8 @@ case $key in
         p_delete_all=1
         ;;
     -s|--ssh)
-        warning "SSH option is deprecated, use PATH=<address>:<path>."
-
-        p_ssh_address="$2"
-        ssh="ssh $p_ssh_address"
-        shift 2
+        error "Option is removed use PATH=ADDRESS:PATH, see --help"
+        exit 1
         ;;
     -S|--snapshot)
         p_snapshot=$2
@@ -215,6 +220,10 @@ case $key in
     -t|--type)
         p_type=$2
         shift 2
+        ;;
+    --version)
+        echo -e "$version"
+        exit 0
         ;;
     -*)
         #unknown option
@@ -233,21 +242,32 @@ done
 [[ -z $p_config ]] && error "You need to specify the config name to backup!"
 [[ -z $p_dest ]] && error "No path specified!"
 
-# Default values if they haven't been set by a config file or cl option.
-p_baksnapperd=${p_baksnapperd-"baksnapperd"}
-p_all=${p_all-0}
-p_prune=${p_prune-0}
-p_verbose=${p_verbose-0}
-p_delete=${p_delete-0}
-p_delete_all=${p_delete_all-0}
-p_type=${p_type-"push"}
+function exit-msg {
+    notify-send -u critical "Done backing up $p_config. Safe to turn off computer."
+}
 
-printv $p_verbose "p_config=${p_config}"
-printv $p_verbose "p_dest=${p_dest}"
-printv $p_verbose "p_prune=${p_prune}"
-printv $p_verbose "p_all=${p_all}"
-printv $p_verbose "p_delete=${p_delete}"
-printv $p_verbose "p_baksnapperd=${p_baksnapperd}"
+# Only run notify-send if installed
+if [ hash notify-send 2> /dev/null ]; then
+    notify-send -u critical "Backing up $p_config. Do not turn off computer!"
+    trap exit-msg EXIT
+fi
+
+p_verbose=${p_verbose-0}
+printv $p_verbose "p_config = ${p_config}"
+printv $p_verbose "p_prune = ${p_prune=0}"
+printv $p_verbose "p_all = ${p_all=0}"
+printv $p_verbose "p_delete = ${p_delete=0}"
+
+regex='(.*?):(.*)'
+if [[ $p_dest =~ $regex ]]; then
+    echo "=MATCH="
+    ssh="ssh ${BASH_REMATCH[1]}"
+    dest="${BASH_REMATCH[2]}"
+else
+    echo "=NO MATCH="
+    dest=$p_dest
+fi
+printv $p_verbose "dest = ${dest}"
 printv $p_verbose "ssh = ${ssh}"
 
 if hash notify-send 2> /dev/null; then
@@ -269,26 +289,20 @@ if [ -n "$ssh" ]; then
     [ $? -gt 0 ] && error "Unable to connect to $ssh"
 fi
 
-if [ -z "$ssh" ]; then
-    baksnapperd="$p_baksnapperd"
-else
-    baksnapperd="$ssh"
-fi
-
-case $p_type in
+printv $p_verbose "p_baksnapperd = ${p_baksnapperd=baksnapperd}"
+case ${p_type="push"} in
     pull|PULL)
-        sender=$baksnapperd
+        sender=${ssh-$p_baksnapperd}
         receiver=$p_baksnapperd
     ;;
     push|PUSH)
         sender=$p_baksnapperd
-        receiver=$baksnapperd
+        receiver=${ssh-$p_baksnapperd}
     ;;
     *)
         error "Unknown type! $p_type"
     ;;
 esac
-
 printv $p_verbose "sender=$sender"
 printv $p_verbose "receiver=$receiver"
 
@@ -299,7 +313,7 @@ subvolume=$($sender list-snapper-snapshots $p_config)
 printv $p_verbose "subvolume=$subvolume"
 
 src_root=$subvolume/.snapshots
-dest_root="$p_dest/$p_config"
+dest_root="$dest/$p_config"
 
 $receiver create-config $dest_root
 [ $? -gt 0 ] && error "Problem creating config at backup location"
@@ -321,6 +335,7 @@ fi
 
 printv $p_verbose "src_snapshots=${src_snapshots[@]}"
 printv $p_verbose "dest_snapshots=${dest_snapshots[@]}"
+
 ################################################################################
 # Compare source and destination location and sort the snapshots into:
 # common: exist at both locations
@@ -382,13 +397,9 @@ function incremental_backup {
     echo "Incremental backup"
     printv $p_verbose "Backing up snapshot $2 using snapshot $1 as reference."
 
-    local src_dir=$subvolume/.snapshots/$2
-    local ref_dir=$subvolume/.snapshots/$1
-    echo "src_dir=$src_dir"
-    echo "ref_dir=$ref_dir"
     $receiver create-snapshot $dest_root $2
-    $sender send-info $src_dir $2 | $receiver receive-info $dest_root $2
-    $sender send-incremental-snapshot $ref_dir $src_dir \
+    $sender send-info $src_root $2 | $receiver receive-info $dest_root $2
+    $sender send-incremental-snapshot $subvolume/.snapshots/{$1,$2} \
         | $receiver receive-snapshot $dest_root $2
     [ $? -gt 0 ] && error "Failed to send snapshot!"
 }
@@ -460,7 +471,7 @@ function remove_snapshots {
 }
 
 # Main:
-if [ $p_delete_all -eq 1 ]; then
+if [ ${p_delete_all-0} -eq 1 ]; then
     echo -n "Are you sure you want to delete all backup snapshots from $dest_root? (y/N): "
     while true
     do
