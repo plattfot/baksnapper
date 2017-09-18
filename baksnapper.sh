@@ -226,14 +226,11 @@ if [ hash notify-send 2> /dev/null ]; then
     trap exit-msg EXIT
 fi
 
-# Default values if they haven't been set by a config file or cl option.
-p_baksnapperd=${p_baksnapperd-"baksnapperd"}
-p_all=${p_all-0}
-p_prune=${p_prune-0}
 p_verbose=${p_verbose-0}
-p_delete=${p_delete-0}
-p_delete_all=${p_delete_all-0}
-p_type=${p_type-"push"}
+printv $p_verbose "p_config = ${p_config}"
+printv $p_verbose "p_prune = ${p_prune=0}"
+printv $p_verbose "p_all = ${p_all=0}"
+printv $p_verbose "p_delete = ${p_delete=0}"
 
 regex='(.*?):(.*)'
 if [[ $p_dest =~ $regex ]]; then
@@ -244,6 +241,8 @@ else
     echo "=NO MATCH="
     dest=$p_dest
 fi
+printv $p_verbose "dest = ${dest}"
+printv $p_verbose "ssh = ${ssh}"
 
 if [ -n "$ssh" ]; then
     # Sanity check for ssh
@@ -251,7 +250,8 @@ if [ -n "$ssh" ]; then
     [ $? -gt 0 ] && error "Unable to connect to $ssh"
 fi
 
-case $p_type in
+printv $p_verbose "p_baksnapperd = ${p_baksnapperd=baksnapperd}"
+case ${p_type="push"} in
     pull|PULL)
         sender=${ssh-$p_baksnapperd}
         receiver=$p_baksnapperd
@@ -264,14 +264,6 @@ case $p_type in
         error "Unknown type! $p_type"
     ;;
 esac
-
-printv $p_verbose "p_config = ${p_config}"
-printv $p_verbose "p_prune = ${p_prune}"
-printv $p_verbose "p_all = ${p_all}"
-printv $p_verbose "p_delete = ${p_delete}"
-printv $p_verbose "p_baksnapperd = ${p_baksnapperd}"
-printv $p_verbose "dest = ${dest}"
-printv $p_verbose "ssh = ${ssh}"
 printv $p_verbose "sender=$sender"
 printv $p_verbose "receiver=$receiver"
 
@@ -440,7 +432,7 @@ function remove_snapshots {
 }
 
 # Main:
-if [ $p_delete_all -eq 1 ]; then
+if [ ${p_delete_all-0} -eq 1 ]; then
     echo -n "Are you sure you want to delete all backup snapshots from $dest_root? (y/N): "
     while true
     do
