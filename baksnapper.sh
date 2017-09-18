@@ -3,7 +3,7 @@
 # Baksnapper - Backup snapper snapshots to backup location using
 # btrfs' incremental send and receive
 
-# Copyright (C) 2015  Fredrik Salomonsson
+# Copyright (C) 2015-2017  Fredrik Salomonsson
 
 # This file is part of baksnapper
 
@@ -43,7 +43,7 @@ Options:
 \t\t\t\t\tor to backup snapshots from a server (pull). Default is to push.
 \t-v, --verbose\t\t\tVerbose print out.
 \t-h, --help\t\t\tPrint this help and then exit.
-
+\t--version\t\tPrint version and then exit
 Example: 
 
 1)
@@ -73,6 +73,16 @@ Exit status:
 
 Author:
 Fredrik "PlaTFooT" Salomonsson
+EOF
+
+read -rd '' version <<EOF
+baksnapper (baksnapper) 0.7.0
+Copyright (C) 2017  Fredrik Salomonsson
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+Written by Fredrik "PlaTFooT" Salomonsson
 EOF
 
 function error {
@@ -198,6 +208,10 @@ case $key in
     -t|--type)
         p_type=$2
         shift 2
+        ;;
+    --version)
+        echo -e "$version"
+        exit 0
         ;;
     -*)
         #unknown option

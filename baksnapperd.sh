@@ -2,7 +2,7 @@
 
 # Baksnapperd - Daemon used by baksnapper when backup via ssh
 
-# Copyright (C) 2015  Fredrik Salomonsson
+# Copyright (C) 2015-2017  Fredrik Salomonsson
 
 # This file is part of baksnapper
 
@@ -18,6 +18,16 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+read -rd '' version <<EOF
+baksnapperd (baksnapper) 0.7.0
+Copyright (C) 2017  Fredrik Salomonsson
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+Written by Fredrik "PlaTFooT" Salomonsson
+EOF
 
 function error {
     echo "[ERROR] $1" 1>&2
@@ -101,6 +111,10 @@ case "$1" in
 
         ;;
     test-connection)
+        exit 0
+        ;;
+    --version)
+        echo -e "$version"
         exit 0
         ;;
     *)
