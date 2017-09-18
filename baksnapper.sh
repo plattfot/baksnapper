@@ -21,42 +21,50 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 read -rd '' help <<EOF
-Usage: $0 [OPTIONS]... [PATH]
+Usage: $0 [OPTIONS...] [ADDRESS:]PATH
 
-Backup snapper snapshot to [PATH] using btrfs incremental send and
-receive.
+Backup snapper snapshot to PATH using btrfs incremental send and
+receive. ADDRESS is specified for remote backups.
 
 Options:
-\t-c <name>, --config <name>\tName of config.
+\t-c NAME, --config NAME\tName of config.
 \t-a, --all\t\t\tSend all snapshots in the source directory. 
 \t\t\t\t\tDefault is to only send the last one.
 \t-p, --prune\t\t\tPrune the backups by deleting snapshots that 
 \t\t\t\t\tisn't in the source directory.
-\t-d <list>, --delete <list>\tDelete the snapshots at the backup
+\t-d LIST, --delete LIST\tDelete the snapshots at the backup
 \t\t\t\t\tlocation that are listed in the list then exit.
 \t\t\t\t\tThe list is comma separated.
-\t-s <address>, --ssh <address>\tBackup to a server at address <address>.
-\t--daemon <bin>\t\t\tSet the name of the baksnapperd, default is to call baksnapperd.
+\t-s ADDRESS, --ssh ADDRESS\tRemoved, use ADDRESS:PATH instead.
+\t--daemon BIN\t\t\tSet the name of the baksnapperd, default is to call baksnapperd.
 \t--delete-all\t\t\tDelete all backup snapshots for config
-\t-S <nr>, --snapshot <nr>\tBackup specific snapshot <nr>, default is the last one.
-\t-t <type>, --type <type>\tSpecify either to backup snapshots to a server (push) 
+\t-S NR, --snapshot NR\tBackup specific snapshot NR, default is the last one.
+\t-t TYPE, --type TYPE\tSpecify either to backup snapshots to a server (push) 
 \t\t\t\t\tor to backup snapshots from a server (pull). Default is to push.
 \t-v, --verbose\t\t\tVerbose print out.
 \t-h, --help\t\t\tPrint this help and then exit.
 
 Example: 
+
+1)
 $0 -c root /mnt/backup
 Backup the last root snapshot to /mnt/backup, if it is the first time
 it will send the whole snapshot otherwise it will just send what have
 changed.
 
+2)
 $0 -d 1,2,3,4 -c root /mnt/backup
 Delete the root's snapshots 1,2,3 and 4 for from /mnt/backup, will
 output a warning if a snapshot doesn't exist.
 
+3)
+$0 -c root foo:/mnt/backup
+Same as example 1 except it will send the backups to the remote
+machine named foo.
+
 Note:
-This doesn't support option stacking e.g. -pc <name>. Instead you
-need to separate each option i.e. -p -c <name>
+This doesn't support option stacking e.g. -pc NAME. Instead you
+need to separate each option i.e. -p -c NAME
 Also this script needs root to be able to backup snapshots.
 
 Exit status:
@@ -109,11 +117,6 @@ function read-config {
                 get-value "$line"
                 p_dest=${p_dest-"$_value"}
             ;;
-            SSH*=*)
-                get-value "$line"
-                p_ssh_address=${p_ssh_address-"$_value"}
-                ssh=${ssh-"ssh $p_ssh_address"}
-                ;;
             DAEMON*=*)
                 get-value "$line"
                 p_baksnapperd=${p_baksnapperd-$_value}
@@ -178,9 +181,7 @@ case $key in
         p_delete_all=1
         ;;
     -s|--ssh)
-        p_ssh_address="$2"
-        ssh="ssh $p_ssh_address"
-        shift 2
+        error "Option removed, see --help"
         ;;
     -S|--snapshot)
         p_snapshot=$2
