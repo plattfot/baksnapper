@@ -5,7 +5,7 @@
 
 # Maintainer: Fredrik Salomonsson <plattfot@gmail.com>
 pkgname=baksnapper
-pkgver=0.6.0
+pkgver=0.7.0
 pkgrel=1
 epoch=
 pkgdesc="Backup script for snapper snapshots."
