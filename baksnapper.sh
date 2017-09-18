@@ -260,11 +260,10 @@ printv $p_verbose "p_delete = ${p_delete=0}"
 
 regex='(.*?):(.*)'
 if [[ $p_dest =~ $regex ]]; then
-    echo "=MATCH="
-    ssh="ssh ${BASH_REMATCH[1]}"
+    address="${BASH_REMATCH[1]}"
+    ssh="ssh $address"
     dest="${BASH_REMATCH[2]}"
 else
-    echo "=NO MATCH="
     dest=$p_dest
 fi
 printv $p_verbose "dest = ${dest}"
@@ -286,7 +285,7 @@ fi
 if [ -n "$ssh" ]; then
     # Sanity check for ssh
     $ssh -q test-connection
-    [ $? -gt 0 ] && error "Unable to connect to $ssh"
+    [ $? -gt 0 ] && error "Unable to connect to $address"
 fi
 
 printv $p_verbose "p_baksnapperd = ${p_baksnapperd=baksnapperd}"
