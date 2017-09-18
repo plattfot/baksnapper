@@ -1,3 +1,9 @@
+2017-09-17 Fredrik Salomonsson <plattfot@gmail.com>
+	* 0.7.0 :
+	Changed ssh syntax. Removed the --ssh option, use ADDRESS:PATH instead.
+	Added option --version that prints out the version.
+	Fixed error msg when libnotify isn't installed.
+	Fixed bug in incremental send that left info.xml empty at destination.
 2016-03-07 Fredrik Salomonsson <plattfot@gmail.com>
 	* 0.3.0 :
 	Added support for libnotify to notify the user when baksnapper is running.
