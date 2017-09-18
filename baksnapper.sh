@@ -251,26 +251,27 @@ if [ -n "$ssh" ]; then
     [ $? -gt 0 ] && error "Unable to connect to $ssh"
 fi
 
-if [ -z "$ssh" ]; then
-    baksnapperd="$p_baksnapperd"
-else
-    baksnapperd="$ssh"
-fi
-
 case $p_type in
     pull|PULL)
-        sender=$baksnapperd
+        sender=${ssh-$p_baksnapperd}
         receiver=$p_baksnapperd
     ;;
     push|PUSH)
         sender=$p_baksnapperd
-        receiver=$baksnapperd
+        receiver=${ssh-$p_baksnapperd}
     ;;
     *)
         error "Unknown type! $p_type"
     ;;
 esac
 
+printv $p_verbose "p_config = ${p_config}"
+printv $p_verbose "p_prune = ${p_prune}"
+printv $p_verbose "p_all = ${p_all}"
+printv $p_verbose "p_delete = ${p_delete}"
+printv $p_verbose "p_baksnapperd = ${p_baksnapperd}"
+printv $p_verbose "dest = ${dest}"
+printv $p_verbose "ssh = ${ssh}"
 printv $p_verbose "sender=$sender"
 printv $p_verbose "receiver=$receiver"
 
@@ -303,6 +304,7 @@ fi
 
 printv $p_verbose "src_snapshots=${src_snapshots[@]}"
 printv $p_verbose "dest_snapshots=${dest_snapshots[@]}"
+
 ################################################################################
 # Compare source and destination location and sort the snapshots into:
 # common: exist at both locations
