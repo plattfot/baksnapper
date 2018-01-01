@@ -28,6 +28,7 @@ receive. ADDRESS is specified for remote backups.
 
 Options:
 \t-c NAME, --config NAME\tName of config.
+\t-C NAME, --configfile NAME\tName of config file to use.
 \t-a, --all\t\t\tSend all snapshots in the source directory. 
 \t\t\t\t\tDefault is to only send the last one.
 \t-p, --prune\t\t\tPrune the backups by deleting snapshots that 
