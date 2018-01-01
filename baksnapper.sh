@@ -98,7 +98,7 @@ function warning {
 
 # If first argument is 1 print the rest. 
 function printv {
-    if [[ $1 = 1 ]]; then
+    if [[ $1 == 1 ]]; then
         shift
         echo -e $@
     fi
