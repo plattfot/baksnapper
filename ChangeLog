@@ -1,3 +1,6 @@
+2018-01-01 Fredrik Salomonsson <plattfot@gmail.com>
+	* 0.7.1 :
+	--configfile was missing in the help message.
 2017-09-17 Fredrik Salomonsson <plattfot@gmail.com>
 	* 0.7.0 :
 	Changed ssh syntax. Removed the --ssh option, use ADDRESS:PATH instead.
