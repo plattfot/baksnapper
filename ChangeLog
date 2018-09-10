@@ -1,3 +1,7 @@
+2018-09-09 Fredrik Salomonsson <plattfot@gmail.com>
+	* 0.8.0 :
+	Changed to using getopt (util-linux) to parse the options.
+	Removed some short options for options that takes additional arguments.
 2018-01-01 Fredrik Salomonsson <plattfot@gmail.com>
 	* 0.7.1 :
 	--configfile was missing in the help message.
