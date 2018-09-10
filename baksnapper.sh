@@ -78,9 +78,7 @@ Same as example 1 except it will send the backups to the remote
 machine named foo.
 
 Note:
-This doesn't support option stacking e.g. -pc NAME. Instead you
-need to separate each option i.e. -p -c NAME
-Also this script needs root to be able to backup snapshots.
+This script most likely needs root to be able to backup snapshots.
 
 Exit status:
 \t0 if ok.
