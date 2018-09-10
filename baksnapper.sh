@@ -27,24 +27,37 @@ Backup snapper snapshot to PATH using btrfs incremental send and
 receive. ADDRESS is specified for remote backups.
 
 Options:
-\t-c NAME, --config NAME\tName of config.
-\t-C NAME, --configfile NAME\tName of config file to use.
-\t-a, --all\t\t\tSend all snapshots in the source directory. 
-\t\t\t\t\tDefault is to only send the last one.
-\t-p, --prune\t\t\tPrune the backups by deleting snapshots that 
-\t\t\t\t\tisn't in the source directory.
-\t-d LIST, --delete LIST\tDelete the snapshots at the backup
-\t\t\t\t\tlocation that are listed in the list then exit.
-\t\t\t\t\tThe list is comma separated.
-\t-s ADDRESS, --ssh ADDRESS\tRemoved, use ADDRESS:PATH instead.
-\t--daemon BIN\t\t\tSet the name of the baksnapperd, default is to call baksnapperd.
-\t--delete-all\t\t\tDelete all backup snapshots for config
-\t-S NR, --snapshot NR\tBackup specific snapshot NR, default is the last one.
-\t-t TYPE, --type TYPE\tSpecify either to backup snapshots to a server (push) 
-\t\t\t\t\tor to backup snapshots from a server (pull). Default is to push.
-\t-v, --verbose\t\t\tVerbose print out.
-\t-h, --help\t\t\tPrint this help and then exit.
-\t--version\t\tPrint version and then exit
+
+-a, --all         Send all snapshots in the source directory.  Default
+                  is to only send the last one.
+
+--config NAME     Name of config.
+
+--configfile NAME Name of config file to use.
+
+-p, --prune       Prune the backups by deleting snapshots that isn't
+                  in the source directory.
+
+--delete LIST     Delete the snapshots at the backup location that are
+                  listed in the list then exit.  The list is comma
+                  separated.
+
+--daemon BIN      Set the name of the baksnapperd, default is to call
+                  baksnapperd.
+
+--delete-all      Delete all backup snapshots for config
+
+--snapshot NUMBER Backup specific snapshot NUMBER, default is the last one.
+
+--type TYPE       Specify either to backup snapshots to a server
+                  (push) or to backup snapshots from a server
+                  (pull). Default is to push.
+
+-v, --verbose     Verbose print out.
+
+-h, --help        Print this help and then exit.
+
+--version         Print version and then exit
 
 Example: 
 
@@ -78,7 +91,7 @@ Fredrik "PlaTFooT" Salomonsson
 EOF
 
 read -rd '' version <<EOF
-baksnapper (baksnapper) 0.7.0
+baksnapper (baksnapper) 0.8.0
 Copyright (C) 2017  Fredrik Salomonsson
 License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 This is free software: you are free to change and redistribute it.
@@ -168,32 +181,34 @@ function read-config {
     done < $1
 }
 
+# Use getopt to parse the command-line arguments
+_args=$(getopt --options "adhvps" --long "config:,configfile:,delete:,daemon:,snapshot:,type:,all,delete-all,help,prune,ssh,verbose,version" -- "$@")
+if [[ $? != 0 ]]
+then
+    echo "Try '$0 --help for more information.'" >&2
+    exit $_error_input
+fi
+
+eval set -- "$_args"
+
 # Parse options
 while [[ $# > 0 ]]
 do
 key=$1
 case $key in
-    -c|--config)
-        p_config="$2"
-        shift 2
-        ;;
-    -v|--verbose)
-        p_verbose=1
-        shift
-        ;;
-    -p|--prune)
-        p_prune=1
-        shift
-        ;;
     -a|--all)
         p_all=1
         shift
         ;;
-    -h|--help)
-        echo -e "$help"
-        exit 0
+    --config)
+        p_config="$2"
+        shift 2
         ;;
-    -d|--delete)
+    --configfile)
+        read-config "$2"
+        shift 2
+        ;;
+    --delete)
         p_delete=1
         p_delete_list=${2//,/ }
         shift 2
@@ -202,40 +217,54 @@ case $key in
         shift
         p_delete_all=1
         ;;
-    -s|--ssh)
-        error "Option is removed use PATH=ADDRESS:PATH, see --help"
-        exit 1
-        ;;
-    -S|--snapshot)
-        p_snapshot=$2
-        shift 2
-        ;;
     --daemon)
         p_baksnapperd=$2
         shift 2
         ;;
-    -C|--configfile)
-        read-config "$2"
+    -h|--help)
+        echo -e "$help"
+        exit 0
+        ;;
+    -p|--prune)
+        p_prune=1
+        shift
+        ;;
+    --snapshot)
+        p_snapshot=$2
         shift 2
         ;;
-    -t|--type)
+    --type)
         p_type=$2
         shift 2
+        ;;
+    -v|--verbose)
+        p_verbose=1
+        shift
         ;;
     --version)
         echo -e "$version"
         exit 0
         ;;
-    -*)
-        #unknown option
-        error "Unknown option $1, see --help"
-        shift
+    -s|--ssh)
+        error "Option is removed use PATH=ADDRESS:PATH, see --help"
+        exit 1
         ;;
-    *)
-        parse-full-path $1
+    --)
         shift
+        break
         ;;
 esac
+done
+
+while [[ $# > 0 ]]
+do
+    case $1 in
+        *)
+            parse-full-path $1
+            shift
+            break
+            ;;
+    esac
 done
 
 # Error checks
