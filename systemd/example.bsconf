@@ -15,6 +15,9 @@ CONFIG = root # This is an inline comment
 # with the name of your server you want to backup to.
 #SSH=localhost
 
+# Private key to use when backing up to remote server.
+# PRIVATE_KEY=/root/.ssh/baksnapperd_rsa
+
 # YES, yes, Yes and 1 are recognized as true, rest as false
 #PRUNE  = NO
 #ALL    = NO
@@ -22,5 +25,4 @@ CONFIG = root # This is an inline comment
 
 # If the baksnapper daemon is called something else, change the name here.
 #DAEMON=baksnapperd
-
 

@@ -1,3 +1,7 @@
+2018-09-13 Fredrik Salomonsson <plattfot@gmail.com>
+	* 0.9.0 :
+	Option --private-key to specify what private key to use.
+	Config option PRIVATE_KEY, same as --private-key.
 2018-09-09 Fredrik Salomonsson <plattfot@gmail.com>
 	* 0.8.0 :
 	Changed to using getopt (util-linux) to parse the options.

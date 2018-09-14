@@ -36,7 +36,7 @@ $ make install PREFIX=pkg BSCONF_ROOT=/etc
 ```
 
 Will install everything into the directory pkg, and the systemd unit
-file will search for the config files in /etc/baksnapper/. 
+file will search for the config files in /etc/baksnapper/.
 
 ### Arch Linux
 Clone my aur repo and then build the package using the PKBUILD:
@@ -60,7 +60,7 @@ release.
 - [x] Config file
 - [x] Generic systemd files
 - [x] Example systemd files
-- [x] Backup from remote destination using ssh (Pull) 
+- [x] Backup from remote destination using ssh (Pull)
 - [ ] Run as none root user.
 
 ## Usage
@@ -93,7 +93,7 @@ $ baksnapper --config home --all --prune /mnt/backup
 
 To delete specific backups from the backup directory, run:
 ```bash
-$ baksnapper --config home /mnt/backup --delete 1,2,3,63 
+$ baksnapper --config home /mnt/backup --delete 1,2,3,63
 ```
 
 This will only delete 1,2,3 and 63 if they only contain a info.xml
@@ -150,7 +150,7 @@ baksnapper.  It uses the same syntax as scp,
 i.e. <address>:<path>. For example backup to machine named foo:
 
 ```bash
-$ baksnapper --config home --all foo:/mnt/backup 
+$ baksnapper --config home --all foo:/mnt/backup
 ```
 
 **Tip:** If your are using a nonstandard ssh port you can specify it
@@ -159,6 +159,14 @@ in the .ssh/config, for example
 Host foo
 Port 666
 ```
+
+**Tip:** If you have multiple keys, you can specify what key
+baksnapper should use either with the option
+```bash
+$ baksnapper config home --all foo:/mnt/backup --private-key /root/.ssh/<BAKSNAPPERD-PRIVATE-KEY>
+```
+Or specify that in the Config file using PRIVATE_KEY.
+
 ## Config file
 
 It can be tiresome to pass the options to baksnapper all the time, you
@@ -174,16 +182,18 @@ For boolean parameters YES, yes, yes and 1 are interpret as on/true and
 anything else as off/false.
 
 The supported options are:
-* CONFIG: The snapper config to backup. Same as -c, --config.
-* PATH: Destination to backup to. 
+* CONFIG: The snapper config to backup. Same as --config.
+* PATH: Destination to backup to.
 * PRUNE: Prune the backups by deleting snapshots that isn't in the source directory.
        Same as -p, --prune
 * ALL: Send all snapshots in the soruce directory. Same as -a, --all
 * VERBOSE: Verbose print out, same as -v, --verbose.
 * DAEMON: Name of the baksnapper daemon, default is baksnapperd. Same as --daemon
-* TYPE: Define if it should push the backup or pull. Default is push. 
+* TYPE: Define if it should push the backup or pull. Default is push.
   	Pull can be used to transfer a backup from a remote server to
   	the current machine.
+* PRIVATE_KEY: The private key file to use when connecting to a remote
+  server. Same as --private-key.
 
 **Note:** Command line options will take precendence over config file options.
 **Note:** No variable expansion is supported in the config files, for
@@ -193,7 +203,7 @@ expand ~ yourself i.e /home/bob/backup if $USER = bob.
 ## Systemd
 
 Baksnapper also supplies a timer and service file so that you can use
-systemd to handle the backup. 
+systemd to handle the backup.
 For example to use root.bsconf you simply call
 
 ```bash
@@ -201,7 +211,7 @@ systemctl start baksnapper@root.bsconf.timer
 ```
 
 Where it looks for config files depends on what BSCONF_ROOT was set to
-when installing the package, by default this will be /etc/baksnapper/. 
+when installing the package, by default this will be /etc/baksnapper/.
 
 ## Limitations
 
@@ -220,6 +230,3 @@ $ baksnapper -a -p -c home /mnt/backup
 ```
 
 Config files doesn't support variable expansion,
-
-
-

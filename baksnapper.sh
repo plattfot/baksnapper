@@ -35,6 +35,9 @@ Options:
 
 --configfile NAME Name of config file to use.
 
+--private-key KEY Specify the private KEY file to use when connecting
+                  to a remote backup location.
+
 -p, --prune       Prune the backups by deleting snapshots that isn't
                   in the source directory.
 
@@ -129,7 +132,7 @@ function parse-full-path {
 function read-config {
 
     function get-value {
-        _value=$(echo $1 | sed -Ee 's/^[A-Z ]+=[ ]*(.*?)/\1/' -e 's/#.*//')
+        _value=$(echo $1 | sed -Ee 's/^[A-Z_ ]+=[ ]*(.*?)/\1/' -e 's/#.*//')
     }
 
     function parse-bool {
@@ -173,6 +176,10 @@ function read-config {
                 get-value "$line"
                 p_type=${p_type-$_value}
                 ;;
+            PRIVATE_KEY*=*)
+                echo "value = $_value"
+                p_ssh_args=${p_ssh_args-" -i $_value"}
+                ;;
             *)
                 ;;
         esac
@@ -180,7 +187,7 @@ function read-config {
 }
 
 # Use getopt to parse the command-line arguments
-_args=$(getopt --options "adhvps" --long "config:,configfile:,delete:,daemon:,snapshot:,type:,all,delete-all,help,prune,ssh,verbose,version" -- "$@")
+_args=$(getopt --options "adhvps" --long "config:,configfile:,delete:,daemon:,private-key:,snapshot:,type:,all,delete-all,help,prune,ssh,verbose,version" -- "$@")
 if [[ $? != 0 ]]
 then
     echo "Try '$0 --help for more information.'" >&2
@@ -222,6 +229,10 @@ case $key in
     -h|--help)
         echo -e "$help"
         exit 0
+        ;;
+    --private-key)
+        p_ssh_args=" -i $2"
+        shift 2
         ;;
     -p|--prune)
         p_prune=1
@@ -289,7 +300,7 @@ printv $p_verbose "p_delete = ${p_delete=0}"
 regex='(.*?):(.*)'
 if [[ $p_dest =~ $regex ]]; then
     address="${BASH_REMATCH[1]}"
-    ssh="ssh $address"
+    ssh="ssh $p_ssh_args $address"
     dest="${BASH_REMATCH[2]}"
 else
     dest=$p_dest
