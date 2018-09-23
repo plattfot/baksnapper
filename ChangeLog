@@ -1,4 +1,9 @@
 2018-09-13 Fredrik Salomonsson <plattfot@gmail.com>
+	* 0.9.1 :
+	Wasn't parsing the PRIVATE_KEY in the configfile.
+	Updated the example config file.
+	Added note about ssh connection in the README.md for the configfile.
+2018-09-13 Fredrik Salomonsson <plattfot@gmail.com>
 	* 0.9.0 :
 	Option --private-key to specify what private key to use.
 	Config option PRIVATE_KEY, same as --private-key.
