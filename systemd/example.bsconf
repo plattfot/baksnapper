@@ -8,21 +8,20 @@
 # Snapper config to backup
 CONFIG = root # This is an inline comment
 
-# Destination to backup to, note must not contain ~ or any env variables
+# Destination to local backup, note must not contain ~ or any env variables
 #PATH=/mnt/backup
 
-# To backup to remote server. Uncomment this and replace 'localhost'
-# with the name of your server you want to backup to.
-#SSH=localhost
+# Backup to remote server use this instead. Replace 'localhost' with
+# the hostname of the server.
+#PATH=localhost:/mnt/backup
 
 # Private key to use when backing up to remote server.
 # PRIVATE_KEY=/root/.ssh/baksnapperd_rsa
 
-# YES, yes, Yes and 1 are recognized as true, rest as false
+# YES, yes, Yes and 1 are recognized as true, rest is false.
 #PRUNE  = NO
 #ALL    = NO
 #VERBOSE= NO
 
 # If the baksnapper daemon is called something else, change the name here.
 #DAEMON=baksnapperd
-
