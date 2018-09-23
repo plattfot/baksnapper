@@ -183,7 +183,10 @@ anything else as off/false.
 
 The supported options are:
 * CONFIG: The snapper config to backup. Same as --config.
-* PATH: Destination to backup to.
+* PATH: Destination to backup to. For remote backup use
+        hostname:/backup/to. Where 'hostname' is the name of the
+        server and '/backup/to' is the path to the location it should
+        write the backups to on the remote host.
 * PRUNE: Prune the backups by deleting snapshots that isn't in the source directory.
        Same as -p, --prune
 * ALL: Send all snapshots in the soruce directory. Same as -a, --all
