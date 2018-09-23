@@ -177,7 +177,7 @@ function read-config {
                 p_type=${p_type-$_value}
                 ;;
             PRIVATE_KEY*=*)
-                echo "value = $_value"
+                get-value "$line"
                 p_ssh_args=${p_ssh_args-" -i $_value"}
                 ;;
             *)
