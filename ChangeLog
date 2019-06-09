@@ -1,3 +1,9 @@
+2019-06-09 Fredrik Salomonsson <plattfot@gmail.com>
+	* 1.0.0 :
+	Fixed errors in examples in --help text.
+	--verbose now uses 'set -x'
+	Cleaning up snapshots if it fails.
+	Removed deprecated --ssh option.
 2018-09-23 Fredrik Salomonsson <plattfot@gmail.com>
 	* 0.9.1 :
 	Wasn't parsing the PRIVATE_KEY in the configfile.
