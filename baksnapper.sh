@@ -419,14 +419,24 @@ printv $p_verbose "common=" "${common[@]}"
 printv $p_verbose "only_in_src=" "${only_in_src[@]}"
 printv $p_verbose "only_in_dest=" "${only_in_dest[@]}"
 ################################################################################
-
 # First argument is the snapshot to send.
 function single_backup {
     printv $p_verbose "Sending snapshot $1."
     $receiver create-snapshot $dest_root $1
+    [ $? -gt 0 ] && error "Failed to create snapshot at backup location!"
+
     $sender send-info $src_root $1 | $receiver receive-info $dest_root $1
+    if [[ $? -gt 0 ]]
+    then
+        $receiver remove-broken-snapshot $dest_root $1
+        error "Failed to send snapshot info!"
+    fi
     $sender send-snapshot $src_root $1 | $receiver receive-snapshot $dest_root $1
-    [ $? -gt 0 ] && error "Failed to send snapshot!"
+    if [[ $? -gt 0 ]]
+    then
+        $receiver remove-broken-snapshot $dest_root $1
+        error "Failed to send snapshot!"
+    fi
 }
 # First argument is the reference snapshot and the second is the
 # snapshot to backup. It will only send the difference between the
@@ -436,10 +446,22 @@ function incremental_backup {
     printv $p_verbose "Backing up snapshot $2 using snapshot $1 as reference."
 
     $receiver create-snapshot $dest_root $2
+    [ $? -gt 0 ] && error "Failed to create snapshot at backup location!"
+
     $sender send-info $src_root $2 | $receiver receive-info $dest_root $2
+    if [[ $? -gt 0 ]]
+    then
+        $receiver remove-broken-snapshot $dest_root $1
+        error "Failed to send snapshot info!"
+    fi
+
     $sender send-incremental-snapshot $subvolume/.snapshots/{$1,$2} \
         | $receiver receive-snapshot $dest_root $2
-    [ $? -gt 0 ] && error "Failed to send snapshot!"
+    if [[ $? -gt 0 ]]
+    then
+        $receiver remove-broken-snapshot $dest_root $1
+        error "Failed to send snapshot!"
+    fi
 }
 
 # Main logic for the backup
