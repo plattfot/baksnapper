@@ -108,8 +108,18 @@ case "$1" in
                 warning "Snapshot $snapshot doesn't match a snapper snapshot, "\
                         "ignoring it."
             fi
-        done    
-
+        done
+        ;;
+    remove-broken-snapshot)
+        shift
+        dest_root=$1
+        shift
+        snapshot=$1
+        if [[ -d $dest_root/$snapshot/snapshot ]]
+        then
+            btrfs subvolume delete $dest_root/$snapshot/snapshot
+        fi
+        rm -r -- $dest_root/$snapshot
         ;;
     test-connection)
         exit 0
