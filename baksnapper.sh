@@ -62,21 +62,21 @@ Options:
 
 --version         Print version and then exit
 
-Example: 
+Example:
 
 1)
-$0 -c root /mnt/backup
+$0 --config root /mnt/backup
 Backup the last root snapshot to /mnt/backup, if it is the first time
 it will send the whole snapshot otherwise it will just send what have
 changed.
 
 2)
-$0 -d 1,2,3,4 -c root /mnt/backup
+$0 --delete 1,2,3,4 -c root /mnt/backup
 Delete the root's snapshots 1,2,3 and 4 for from /mnt/backup, will
 output a warning if a snapshot doesn't exist.
 
 3)
-$0 -c root foo:/mnt/backup
+$0 --config root foo:/mnt/backup
 Same as example 1 except it will send the backups to the remote
 machine named foo.
 
