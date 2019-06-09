@@ -311,7 +311,7 @@ then
     trap exit-msg EXIT
 fi
 
-if [ -n "$ssh" ]
+if [[ -n "$ssh" ]]
 then
     # Sanity check for ssh
     $ssh -q test-connection
@@ -350,12 +350,12 @@ num_src_snapshots=${#src_snapshots[@]}
 dest_snapshots=($($receiver list-snapshots $dest_root))
 num_dest_snapshots=${#dest_snapshots[@]}
 
-if [ -z $p_snapshot ]
+if [[ -z $p_snapshot ]]
 then
     p_snapshot=${src_snapshots[num_src_snapshots-1]}
 else
     $sender verify-snapshot $src_root/$p_snapshot
-    [ $? -gt 0 ] && exit 1
+    [[ $? > 0 ]] && exit 1
 fi
 
 ################################################################################
@@ -405,16 +405,16 @@ done
 # First argument is the snapshot to send.
 function single-backup {
     $receiver create-snapshot $dest_root $1
-    [ $? -gt 0 ] && error "Failed to create snapshot at backup location!"
+    [[ $? > 0 ]] && error "Failed to create snapshot at backup location!"
 
     $sender send-info $src_root $1 | $receiver receive-info $dest_root $1
-    if [[ $? -gt 0 ]]
+    if [[ $? > 0 ]]
     then
         $receiver remove-broken-snapshot $dest_root $1
         error "Failed to send snapshot info!"
     fi
     $sender send-snapshot $src_root $1 | $receiver receive-snapshot $dest_root $1
-    if [[ $? -gt 0 ]]
+    if [[ $? > 0 ]]
     then
         $receiver remove-broken-snapshot $dest_root $1
         error "Failed to send snapshot!"
@@ -427,10 +427,10 @@ function incremental-backup {
     echo "Incremental backup"
 
     $receiver create-snapshot $dest_root $2
-    [ $? -gt 0 ] && error "Failed to create snapshot at backup location!"
+    [[ $? > 0 ]] && error "Failed to create snapshot at backup location!"
 
     $sender send-info $src_root $2 | $receiver receive-info $dest_root $2
-    if [[ $? -gt 0 ]]
+    if [[ $? > 0 ]]
     then
         $receiver remove-broken-snapshot $dest_root $1
         error "Failed to send snapshot info!"
@@ -438,7 +438,7 @@ function incremental-backup {
 
     $sender send-incremental-snapshot $subvolume/.snapshots/{$1,$2} \
         | $receiver receive-snapshot $dest_root $2
-    if [[ $? -gt 0 ]]
+    if [[ $? > 0 ]]
     then
         $receiver remove-broken-snapshot $dest_root $1
         error "Failed to send snapshot!"
@@ -447,7 +447,7 @@ function incremental-backup {
 
 # Main logic for the backup
 function backup {
-    if [ $num_src_snapshots -eq 0 ]
+    if [[ $num_src_snapshots == 0 ]]
     then
         error "No snapshots found."
     fi
@@ -460,7 +460,7 @@ function backup {
     fi
 
     # Destination doesn't have any snapshots, send the whole snapshot.
-    if [ -z $common ]
+    if [[ -z $common ]]
     then
         echo "Initialize backup"
         if [ $p_all -eq 1 ]
@@ -513,7 +513,7 @@ function backup {
 }
 
 # Main:
-if [ ${p_delete_all-0} -eq 1 ]
+if [[ ${p_delete_all-0} == 1 ]]
 then
     echo -n "Are you sure you want to delete all backup snapshots from $dest_root? (y/N): "
     while true
@@ -531,14 +531,14 @@ then
                 ;;
         esac
     done
-elif [ $p_delete -eq 0 ]
+elif [[ ${p_delete-0} == 0 ]]
 then
     backup
 else
     $receiver remove-snapshots $dest_root ${p_delete_list[@]}
 fi
 
-if [ $p_prune -eq 1 ]
+if [[ $p_prune == 1 ]]
 then
     $receiver remove-snapshots $dest_root ${only_in_dest[@]}
 fi
