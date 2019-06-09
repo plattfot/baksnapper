@@ -503,9 +503,9 @@ function backup {
 }
 
 # Arguments snapshots to delete
-function remove_snapshots {
+function remove-snapshots {
     printv $p_verbose "snapshots to delete = $@"
-    $receiver remove_snapshots $dest_root $@
+    $receiver remove-snapshots $dest_root $@
 }
 
 # Main:
@@ -516,7 +516,7 @@ if [ ${p_delete_all-0} -eq 1 ]; then
         read answer
         case $answer in
             y|Y)
-                remove_snapshots ${dest_snapshots[@]}
+                remove-snapshots ${dest_snapshots[@]}
                 break
                 ;;
             n|N|"")
@@ -527,11 +527,11 @@ if [ ${p_delete_all-0} -eq 1 ]; then
         esac
     done
 elif [ $p_delete -eq 0 ]; then
-    backup 
+    backup
 else
-    remove_snapshots ${p_delete_list[@]}
+    remove-snapshots ${p_delete_list[@]}
 fi
 
 if [ $p_prune -eq 1 ]; then
-    remove_snapshots ${only_in_dest[@]}
+    remove-snapshots ${only_in_dest[@]}
 fi

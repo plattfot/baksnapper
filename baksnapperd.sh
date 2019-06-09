@@ -87,7 +87,7 @@ case "$1" in
         shift
         btrfs send -p $1/snapshot $2/snapshot
         ;;
-    remove_snapshots)
+    remove-snapshots)
         shift
         dest_root=$1
         shift
