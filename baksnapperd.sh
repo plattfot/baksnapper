@@ -95,7 +95,8 @@ case "$1" in
         do
             # Only delete directories containing info.xml and snapshot
             content=($(find $dest_root/$snapshot \
-                            -maxdepth 1 -mindepth 1 -printf "%f\n" 2> /dev/null | sort ))
+                            -maxdepth 1 -mindepth 1 -printf "%f\n" 2> /dev/null | \
+                           sort ))
             echo ${content[@]}
             if [[ ${#content[@]} == 2 && \
                         ${content[0]} == "info.xml" && \
