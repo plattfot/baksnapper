@@ -120,7 +120,8 @@ function printv {
 }
 
 function parse-full-path {
-    if [[ $1 =~ "\(.*?\):\(.*\)" ]]; then
+    if [[ $1 =~ "\(.*?\):\(.*\)" ]]
+    then
         p_ssh_address=${BASH_REMATCH[1]}
         ssh=${ssh-"ssh $p_ssh_address"}
         p_dest=${BASH_REMATCH[2]}
@@ -136,7 +137,8 @@ function read-config {
     }
 
     function parse-bool {
-        if [[ "$1" =~ YES|yes|Yes|1 ]]; then
+        if [[ "$1" =~ YES|yes|Yes|1 ]]
+        then
             _bool=1
         else
             _bool=0
@@ -286,7 +288,8 @@ function exit-msg {
 }
 
 # Only run notify-send if installed
-if [ hash notify-send 2> /dev/null ]; then
+if [ hash notify-send 2> /dev/null ]
+then
     notify-send -u critical "Backing up $p_config. Do not turn off computer!"
     trap exit-msg EXIT
 fi
@@ -298,7 +301,8 @@ printv $p_verbose "p_all = ${p_all=0}"
 printv $p_verbose "p_delete = ${p_delete=0}"
 
 regex='(.*?):(.*)'
-if [[ $p_dest =~ $regex ]]; then
+if [[ $p_dest =~ $regex ]]
+then
     address="${BASH_REMATCH[1]}"
     ssh="ssh $p_ssh_args $address"
     dest="${BASH_REMATCH[2]}"
@@ -308,7 +312,8 @@ fi
 printv $p_verbose "dest = ${dest}"
 printv $p_verbose "ssh = ${ssh}"
 
-if hash notify-send 2> /dev/null; then
+if hash notify-send 2> /dev/null
+then
     has_notify=1
 fi
 
@@ -316,12 +321,14 @@ function exit-msg {
     notify-send -u critical "Done backing up $p_config. Safe to turn off computer."
 }
 
-if [[ $has_notify == 1 && $p_list != 1 ]]; then
+if [[ $has_notify == 1 && $p_list != 1 ]]
+then
     notify-send -u critical "Backing up $p_config. Do not turn off computer!"
     trap exit-msg EXIT
 fi
 
-if [ -n "$ssh" ]; then
+if [ -n "$ssh" ]
+then
     # Sanity check for ssh
     $ssh -q test-connection
     [ $? -gt 0 ] && error "Unable to connect to $address"
@@ -364,7 +371,8 @@ num_src_snapshots=${#src_snapshots[@]}
 dest_snapshots=($($receiver list-snapshots $dest_root))
 num_dest_snapshots=${#dest_snapshots[@]}
 
-if [ -z $p_snapshot ]; then
+if [ -z $p_snapshot ]
+then
     p_snapshot=${src_snapshots[num_src_snapshots-1]}
 else
     $sender verify-snapshot $src_root/$p_snapshot
@@ -391,11 +399,13 @@ only_in_dest=()
 # "sort -g" when getting the snapshots.
 while (( $idx_src < $num_src_snapshots && $idx_dest < $num_dest_snapshots ))
 do
-    if [ ${src_snapshots[idx_src]} -eq ${dest_snapshots[idx_dest]} ]; then
+    if [ ${src_snapshots[idx_src]} -eq ${dest_snapshots[idx_dest]} ]
+    then
         common+=(${src_snapshots[idx_src]})
         ((++idx_src))
         ((++idx_dest))
-    elif [ ${src_snapshots[idx_src]} -lt ${dest_snapshots[idx_dest]} ]; then
+    elif [ ${src_snapshots[idx_src]} -lt ${dest_snapshots[idx_dest]} ]
+    then
         only_in_src+=(${src_snapshots[idx_src]})
         ((++idx_src))
     else
@@ -466,20 +476,24 @@ function incremental-backup {
 
 # Main logic for the backup
 function backup {
-    if [ $num_src_snapshots -eq 0 ]; then
+    if [ $num_src_snapshots -eq 0 ]
+    then
         error "No snapshots found."
     fi
 
     local num_src_only=${#only_in_src[@]}
-    if [ $num_src_only -eq 0 ]; then
+    if [ $num_src_only -eq 0 ]
+    then
         echo "Already backed up all snapshots"
         return 0
     fi
 
     # Destination doesn't have any snapshots, send the whole snapshot.
-    if [ -z $common ]; then
+    if [ -z $common ]
+    then
         echo "Initialize backup"
-        if [ $p_all -eq 1 ]; then
+        if [ $p_all -eq 1 ]
+        then
             # Send the first snapshot as a whole then the rest will be
             # sent incremental.
             local snapshot=${only_in_src[0]}
@@ -495,10 +509,12 @@ function backup {
         fi
     fi
 
-    if [[ $p_all == 0 ]]; then
+    if [[ $p_all == 0 ]]
+    then
         local common_last=${common[${#common[@]}-1]}
         # Check that it's not already synced
-        if [[ $common_last == $p_snapshot ]]; then
+        if [[ $common_last == $p_snapshot ]]
+        then
             error "Already synced the last snapshot."
         fi
         incremental-backup $common_last $p_snapshot
@@ -511,7 +527,8 @@ function backup {
         local idx=${#common[@]}-1
         for (( ; idx >= 0; --idx ))
         do
-            if [[ ${common[idx]} -lt $first_src_snapshot ]]; then
+            if [[ ${common[idx]} -lt $first_src_snapshot ]]
+            then
                 break
             fi
         done
@@ -531,7 +548,8 @@ function remove-snapshots {
 }
 
 # Main:
-if [ ${p_delete_all-0} -eq 1 ]; then
+if [ ${p_delete_all-0} -eq 1 ]
+then
     echo -n "Are you sure you want to delete all backup snapshots from $dest_root? (y/N): "
     while true
     do
@@ -548,12 +566,14 @@ if [ ${p_delete_all-0} -eq 1 ]; then
                 ;;
         esac
     done
-elif [ $p_delete -eq 0 ]; then
+elif [ $p_delete -eq 0 ]
+then
     backup
 else
     remove-snapshots ${p_delete_list[@]}
 fi
 
-if [ $p_prune -eq 1 ]; then
     remove-snapshots ${only_in_dest[@]}
+if [ $p_prune -eq 1 ]
+then
 fi
