@@ -420,7 +420,7 @@ printv $p_verbose "only_in_src=" "${only_in_src[@]}"
 printv $p_verbose "only_in_dest=" "${only_in_dest[@]}"
 ################################################################################
 # First argument is the snapshot to send.
-function single_backup {
+function single-backup {
     printv $p_verbose "Sending snapshot $1."
     $receiver create-snapshot $dest_root $1
     [ $? -gt 0 ] && error "Failed to create snapshot at backup location!"
@@ -441,7 +441,7 @@ function single_backup {
 # First argument is the reference snapshot and the second is the
 # snapshot to backup. It will only send the difference between the
 # two.
-function incremental_backup {
+function incremental-backup {
     echo "Incremental backup"
     printv $p_verbose "Backing up snapshot $2 using snapshot $1 as reference."
 
@@ -486,11 +486,11 @@ function backup {
             # Pop the one that got sent from the array.
             only_in_src=("${only_in_src[@]:1}")
             ((--num_src_only))
-            single_backup $snapshot
+            single-backup $snapshot
             common=$snapshot
         else
             # Send the specified snapshot
-            single_backup $p_snapshot
+            single-backup $p_snapshot
             return 0
         fi
     fi
@@ -501,7 +501,7 @@ function backup {
         if [[ $common_last == $p_snapshot ]]; then
             error "Already synced the last snapshot."
         fi
-        incremental_backup $common_last $p_snapshot
+        incremental-backup $common_last $p_snapshot
         return 0
     else
         # Find the first common snapshot that is lower than the first
@@ -515,11 +515,11 @@ function backup {
                 break
             fi
         done
-        incremental_backup ${common[idx]} $first_src_snapshot
+        incremental-backup ${common[idx]} $first_src_snapshot
 
         for (( idx=1; idx < $num_src_only; ++idx ))
         do
-            incremental_backup ${only_in_src[idx-1]} ${only_in_src[idx]}
+            incremental-backup ${only_in_src[idx-1]} ${only_in_src[idx]}
         done
     fi
 }
