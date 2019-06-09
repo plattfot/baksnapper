@@ -180,7 +180,7 @@ function read-config {
 }
 
 # Use getopt to parse the command-line arguments
-_args=$(getopt --options "adhvps" --long "config:,configfile:,delete:,daemon:,private-key:,snapshot:,type:,all,delete-all,help,prune,ssh,verbose,version" -- "$@")
+_args=$(getopt --options "adhvp" --long "config:,configfile:,delete:,daemon:,private-key:,snapshot:,type:,all,delete-all,help,prune,verbose,version" -- "$@")
 if [[ $? != 0 ]]
 then
     echo "Try '$0 --help for more information.'" >&2
@@ -246,10 +246,6 @@ case $key in
     --version)
         echo -e "$version"
         exit 0
-        ;;
-    -s|--ssh)
-        error "Option is removed use PATH=ADDRESS:PATH, see --help"
-        exit 1
         ;;
     --)
         shift
