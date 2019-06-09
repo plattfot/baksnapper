@@ -111,7 +111,7 @@ function warning {
 }
 
 
-# If first argument is 1 print the rest. 
+# If first argument is 1 print the rest.
 function printv {
     if [[ $1 == 1 ]]; then
         shift
@@ -447,13 +447,13 @@ function backup {
     if [ $num_src_snapshots -eq 0 ]; then
         error "No snapshots found."
     fi
-    
+
     local num_src_only=${#only_in_src[@]}
     if [ $num_src_only -eq 0 ]; then
         echo "Already backed up all snapshots"
         return 0
     fi
-    
+
     # Destination doesn't have any snapshots, send the whole snapshot.
     if [ -z $common ]; then
         echo "Initialize backup"

@@ -38,7 +38,7 @@ function warning {
     echo -e "[Warning] $1" 1>&2
 }
 
-case "$1" in 
+case "$1" in
     list-snapshots) # List snapshots at backup location
         shift
         echo $(find $1 -mindepth 1 -maxdepth 1 -printf "%f\n" | sort -g)
