@@ -110,15 +110,6 @@ function warning {
     echo -e "[Warning] $1" 1>&2
 }
 
-
-# If first argument is 1 print the rest.
-function printv {
-    if [[ $1 == 1 ]]; then
-        shift
-        echo -e $@
-    fi
-}
-
 function parse-full-path {
     if [[ $1 =~ "\(.*?\):\(.*\)" ]]
     then
@@ -278,6 +269,11 @@ do
     esac
 done
 
+if [[ $p_verbose == 1 ]]
+then
+    set -x
+fi
+
 # Error checks
 #[[ $USER != root ]] && error "Need to be root to run this script!"
 [[ -z $p_config ]] && error "You need to specify the config name to backup!"
@@ -294,12 +290,6 @@ then
     trap exit-msg EXIT
 fi
 
-p_verbose=${p_verbose-0}
-printv $p_verbose "p_config = ${p_config}"
-printv $p_verbose "p_prune = ${p_prune=0}"
-printv $p_verbose "p_all = ${p_all=0}"
-printv $p_verbose "p_delete = ${p_delete=0}"
-
 regex='(.*?):(.*)'
 if [[ $p_dest =~ $regex ]]
 then
@@ -309,8 +299,6 @@ then
 else
     dest=$p_dest
 fi
-printv $p_verbose "dest = ${dest}"
-printv $p_verbose "ssh = ${ssh}"
 
 if hash notify-send 2> /dev/null
 then
@@ -334,7 +322,6 @@ then
     [ $? -gt 0 ] && error "Unable to connect to $address"
 fi
 
-printv $p_verbose "p_baksnapperd = ${p_baksnapperd=baksnapperd}"
 case ${p_type="push"} in
     pull|PULL)
         sender=${ssh-$p_baksnapperd}
@@ -348,14 +335,10 @@ case ${p_type="push"} in
         error "Unknown type! $p_type"
     ;;
 esac
-printv $p_verbose "sender=$sender"
-printv $p_verbose "receiver=$receiver"
 
 # Get the subvolume to backup
 #subvolume=$(snapper -c $p_config get-config | grep SUBVOLUME | awk '{ print $3 }')
 subvolume=$($sender list-snapper-snapshots $p_config)
-
-printv $p_verbose "subvolume=$subvolume"
 
 src_root=$subvolume/.snapshots
 dest_root="$dest/$p_config"
@@ -378,9 +361,6 @@ else
     $sender verify-snapshot $src_root/$p_snapshot
     [ $? -gt 0 ] && exit 1
 fi
-
-printv $p_verbose "src_snapshots=${src_snapshots[@]}"
-printv $p_verbose "dest_snapshots=${dest_snapshots[@]}"
 
 ################################################################################
 # Compare source and destination location and sort the snapshots into:
@@ -425,13 +405,9 @@ do
     only_in_src+=(${src_snapshots[idx_src]})
 done
 
-printv $p_verbose "common=" "${common[@]}"
-printv $p_verbose "only_in_src=" "${only_in_src[@]}"
-printv $p_verbose "only_in_dest=" "${only_in_dest[@]}"
 ################################################################################
 # First argument is the snapshot to send.
 function single-backup {
-    printv $p_verbose "Sending snapshot $1."
     $receiver create-snapshot $dest_root $1
     [ $? -gt 0 ] && error "Failed to create snapshot at backup location!"
 
@@ -453,7 +429,6 @@ function single-backup {
 # two.
 function incremental-backup {
     echo "Incremental backup"
-    printv $p_verbose "Backing up snapshot $2 using snapshot $1 as reference."
 
     $receiver create-snapshot $dest_root $2
     [ $? -gt 0 ] && error "Failed to create snapshot at backup location!"
@@ -541,12 +516,6 @@ function backup {
     fi
 }
 
-# Arguments snapshots to delete
-function remove-snapshots {
-    printv $p_verbose "snapshots to delete = $@"
-    $receiver remove-snapshots $dest_root $@
-}
-
 # Main:
 if [ ${p_delete_all-0} -eq 1 ]
 then
@@ -556,7 +525,7 @@ then
         read answer
         case $answer in
             y|Y)
-                remove-snapshots ${dest_snapshots[@]}
+                $receiver remove-snapshots $dest_root ${dest_snapshots[@]}
                 break
                 ;;
             n|N|"")
@@ -570,10 +539,10 @@ elif [ $p_delete -eq 0 ]
 then
     backup
 else
-    remove-snapshots ${p_delete_list[@]}
+    $receiver remove-snapshots $dest_root ${p_delete_list[@]}
 fi
 
-    remove-snapshots ${only_in_dest[@]}
 if [ $p_prune -eq 1 ]
 then
+    $receiver remove-snapshots $dest_root ${only_in_dest[@]}
 fi
