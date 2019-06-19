@@ -1,3 +1,6 @@
+2019-06-18 Fredrik Salomonsson <plattfot@gmail.com>
+	* 1.0.1 :
+	Call to baksnapperd was broken, only --daemon was working.
 2019-06-09 Fredrik Salomonsson <plattfot@gmail.com>
 	* 1.0.0 :
 	Fixed errors in examples in --help text.
