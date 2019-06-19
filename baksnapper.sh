@@ -92,7 +92,7 @@ Fredrik "PlaTFooT" Salomonsson
 EOF
 
 read -rd '' version <<EOF
-baksnapper (baksnapper) 1.0.0
+baksnapper (baksnapper) 1.0.1
 Copyright (C) 2018  Fredrik Salomonsson
 License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 This is free software: you are free to change and redistribute it.
@@ -265,10 +265,14 @@ do
     esac
 done
 
+
 if [[ $p_verbose == 1 ]]
 then
     set -x
 fi
+
+p_baksnapperd=${p_baksnapperd=baksnapperd}
+p_all=${p_all=0}
 
 # Error checks
 #[[ $USER != root ]] && error "Need to be root to run this script!"
@@ -538,7 +542,7 @@ else
     $receiver remove-snapshots $dest_root ${p_delete_list[@]}
 fi
 
-if [[ $p_prune == 1 ]]
+if [[ ${p_prune-0} == 1 ]]
 then
     $receiver remove-snapshots $dest_root ${only_in_dest[@]}
 fi
