@@ -20,7 +20,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 read -rd '' version <<EOF
-baksnapperd (baksnapper) 0.9.1
+baksnapperd (baksnapper) 1.0.2
 Copyright (C) 2018  Fredrik Salomonsson
 License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 This is free software: you are free to change and redistribute it.
