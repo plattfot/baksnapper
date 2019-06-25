@@ -31,11 +31,11 @@ bin: | $(PREFIX_BIN)
 	@install  baksnapperd.sh $|/baksnapperd
 
 systemd: etc | $(PREFIX_LIB)/systemd/system
-	@install systemd/baksnapper@.timer $|/
+	@install --mode=644 systemd/baksnapper@.timer $|/
 	@sed "s|<BSCONF_ROOT>|$(BSCONF_ROOT)|" \
 	     systemd/baksnapper@.service.template \
 	     > $|/baksnapper@.service
-	@chmod 755 $|/baksnapper@.service
+	@chmod 644 $|/baksnapper@.service
 
 etc: | $(PREFIX_ETC)/baksnapper/example
 	@install systemd/example.bsconf $|/root.bsconf
