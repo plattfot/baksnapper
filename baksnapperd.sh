@@ -41,69 +41,68 @@ function warning {
 case "$1" in
     list-snapshots) # List snapshots at backup location
         shift
-        echo $(find $1 -mindepth 1 -maxdepth 1 -printf "%f\n" | sort -g)
+        find "$1" -mindepth 1 -maxdepth 1 -printf "%f\n" | sort -g
         ;;
     list-snapper-snapshots) # List snapshots at source location
         shift
-        echo $(snapper -c $1 get-config | grep SUBVOLUME | awk '{ print $3 }')
+        warning "'list-snapper-snapshots' is deprecated, use 'get-snapper-root' instead."
+        snapper -c "$1" get-config | grep SUBVOLUME | awk '{ print $3 }'
         ;;
     verify-snapshot)
         shift
-        find $1 &> /dev/null
-        [ $? -gt 0 ] && error "Snapshot $p_snapshot doesn't exist."
+        find "$1" &> /dev/null || error "Snapshot $1 doesn't exist."
         ;;
     create-config)
         shift
-        mkdir -p $1
+        mkdir -p "$1"
         ;;
     create-snapshot)
         shift
-        mkdir -p $1/$2
+        mkdir -p "$1"/"$2"
         ;;
     receive-info)
         shift
-        info=$1/$2/info.xml
-        [ -e $info ] && rm -f -- $info
-        touch $info
+        info="$1/$2/info.xml"
+        [ -e "$info" ] && rm -f -- "$info"
+        touch "$info"
         # Read from stdin
         while read -r line || [[ -n $line ]]
         do
-            echo $line >> $info
+            echo "$line" >> "$info"
         done
         ;;
     receive-snapshot)
         shift
-        btrfs receive $1/$2
+        btrfs receive "$1/$2"
         ;;
     send-info)
         shift
-        cat $1/$2/info.xml
+        cat "$1/$2/info.xml"
         ;;
     send-snapshot)
         shift
-        btrfs send $1/$2/snapshot
+        btrfs send "$1/$2/snapshot"
         ;;
     send-incremental-snapshot)
         shift
-        btrfs send -p $1/snapshot $2/snapshot
+        btrfs send -p "$1/snapshot" "$2/snapshot"
         ;;
     remove-snapshots)
         shift
         dest_root=$1
         shift
-        for snapshot in $@
+        for snapshot in "$@"
         do
             # Only delete directories containing info.xml and snapshot
-            content=($(find $dest_root/$snapshot \
-                            -maxdepth 1 -mindepth 1 -printf "%f\n" 2> /dev/null | \
-                           sort ))
-            echo ${content[@]}
+            mapfile -t content < <(find "$dest_root/$snapshot" \
+                                        -maxdepth 1 -mindepth 1 -printf "%f\n" 2> /dev/null | \
+                                       sort)
             if [[ ${#content[@]} == 2 && \
-                        ${content[0]} == "info.xml" && \
-                        ${content[1]}="snapshot" ]]; then
+                  ${content[0]} == "info.xml" && \
+                  ${content[1]} == "snapshot" ]]; then
                 echo "Deleting snapshot $snapshot"
-                btrfs subvolume delete $dest_root/$snapshot/snapshot
-                rm -r -- $dest_root/$snapshot
+                btrfs subvolume delete "$dest_root/$snapshot/snapshot"
+                rm -r -- "${dest_root:?}/$snapshot"
             else
                 warning "Snapshot $snapshot doesn't match a snapper snapshot, "\
                         "ignoring it."
@@ -117,9 +116,9 @@ case "$1" in
         snapshot=$1
         if [[ -d $dest_root/$snapshot/snapshot ]]
         then
-            btrfs subvolume delete $dest_root/$snapshot/snapshot
+            btrfs subvolume delete "$dest_root/$snapshot/snapshot"
         fi
-        rm -r -- $dest_root/$snapshot
+        rm -r -- "${dest_root:?}/$snapshot"
         ;;
     test-connection)
         exit 0

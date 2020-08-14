@@ -111,7 +111,7 @@ function warning {
 }
 
 function parse-full-path {
-    if [[ $1 =~ "\(.*?\):\(.*\)" ]]
+    if [[ $1 =~ \(.*?\):\(.*\) ]]
     then
         p_ssh_address=${BASH_REMATCH[1]}
         ssh=${ssh-"ssh $p_ssh_address"}
@@ -124,7 +124,7 @@ function parse-full-path {
 function read-config {
 
     function get-value {
-        _value=$(echo $1 | sed -Ee 's/^[A-Z_ ]+=[ ]*(.*?)/\1/' -e 's/#.*//')
+        _value=$(echo "$1" | sed -Ee 's/^[A-Z_ ]+=[ ]*(.*?)/\1/' -e 's/#.*//')
     }
 
     function parse-bool {
@@ -136,7 +136,7 @@ function read-config {
         fi
     }
 
-    while read line; do
+    while read -r line; do
         case $line in
             CONFIG*=*)
                 get-value "$line"
@@ -144,7 +144,7 @@ function read-config {
             ;;
             PATH*=*)
                 get-value "$line"
-                parse-full-path $_value
+                parse-full-path "$_value"
             ;;
             DAEMON*=*)
                 get-value "$line"
@@ -176,21 +176,20 @@ function read-config {
             *)
                 ;;
         esac
-    done < $1
+    done < "$1"
 }
 
 # Use getopt to parse the command-line arguments
-_args=$(getopt --options "adhvp" --long "config:,configfile:,delete:,daemon:,private-key:,snapshot:,type:,all,delete-all,help,prune,verbose,version" -- "$@")
-if [[ $? != 0 ]]
+
+if ! _args=$(getopt --name "baksnapper" --options "adhvp" --long "config:,configfile:,delete:,daemon:,private-key:,snapshot:,type:,all,delete-all,help,prune,verbose,version" -- "$@")
 then
-    echo "Try '$0 --help for more information.'" >&2
-    exit $_error_input
+    error "Try '$0 --help for more information.'"
 fi
 
 eval set -- "$_args"
 
 # Parse options
-while [[ $# > 0 ]]
+while [[ $# -gt 0 ]]
 do
 key=$1
 case $key in
@@ -254,11 +253,11 @@ case $key in
 esac
 done
 
-while [[ $# > 0 ]]
+while [[ $# -gt 0 ]]
 do
     case $1 in
         *)
-            parse-full-path $1
+            parse-full-path "$1"
             shift
             break
             ;;
@@ -284,7 +283,7 @@ function exit-msg {
 }
 
 # Only run notify-send if installed
-if [ hash notify-send 2> /dev/null ]
+if hash notify-send 2> /dev/null
 then
     notify-send -u critical "Backing up $p_config. Do not turn off computer!"
     trap exit-msg EXIT
@@ -309,7 +308,7 @@ function exit-msg {
     notify-send -u critical "Done backing up $p_config. Safe to turn off computer."
 }
 
-if [[ $has_notify == 1 && $p_list != 1 ]]
+if [[ $has_notify == 1 ]]
 then
     notify-send -u critical "Backing up $p_config. Do not turn off computer!"
     trap exit-msg EXIT
@@ -318,8 +317,7 @@ fi
 if [[ -n "$ssh" ]]
 then
     # Sanity check for ssh
-    $ssh -q test-connection
-    [ $? -gt 0 ] && error "Unable to connect to $address"
+    $ssh -q test-connection || error "Unable to connect to $address"
 fi
 
 case ${p_type="push"} in
@@ -337,29 +335,26 @@ case ${p_type="push"} in
 esac
 
 # Get the subvolume to backup
-#subvolume=$(snapper -c $p_config get-config | grep SUBVOLUME | awk '{ print $3 }')
-subvolume=$($sender list-snapper-snapshots $p_config)
+subvolume=$($sender list-snapper-snapshots "$p_config")
 
-src_root=$subvolume/.snapshots
+src_root=${subvolume:?}/.snapshots
 dest_root="$dest/$p_config"
 
-$receiver create-config $dest_root
-[ $? -gt 0 ] && error "Problem creating config at backup location"
+$receiver create-config "$dest_root" || error "Problem creating config at backup location"
 
 # List all the snapshots available
-src_snapshots=($($sender list-snapshots $src_root))
+mapfile -t src_snapshots < <($sender list-snapshots "$src_root")
 num_src_snapshots=${#src_snapshots[@]}
 
 # List all the snapshots at the backup location
-dest_snapshots=($($receiver list-snapshots $dest_root))
+mapfile -t dest_snapshots < <($receiver list-snapshots "$dest_root")
 num_dest_snapshots=${#dest_snapshots[@]}
 
 if [[ -z $p_snapshot ]]
 then
     p_snapshot=${src_snapshots[num_src_snapshots-1]}
 else
-    $sender verify-snapshot $src_root/$p_snapshot
-    [[ $? > 0 ]] && exit 1
+    $sender verify-snapshot "$src_root/$p_snapshot" || exit 1
 fi
 
 ################################################################################
@@ -377,19 +372,19 @@ only_in_dest=()
 
 # NOTE: the snapshots must be sorted in ascending order hence the
 # "sort -g" when getting the snapshots.
-while (( $idx_src < $num_src_snapshots && $idx_dest < $num_dest_snapshots ))
+while (( idx_src < num_src_snapshots && idx_dest < num_dest_snapshots ))
 do
-    if [ ${src_snapshots[idx_src]} -eq ${dest_snapshots[idx_dest]} ]
+    if [ "${src_snapshots[idx_src]}" -eq "${dest_snapshots[idx_dest]}" ]
     then
-        common+=(${src_snapshots[idx_src]})
+        common+=("${src_snapshots[idx_src]}")
         ((++idx_src))
         ((++idx_dest))
-    elif [ ${src_snapshots[idx_src]} -lt ${dest_snapshots[idx_dest]} ]
+    elif [ "${src_snapshots[idx_src]}" -lt "${dest_snapshots[idx_dest]}" ]
     then
-        only_in_src+=(${src_snapshots[idx_src]})
+        only_in_src+=("${src_snapshots[idx_src]}")
         ((++idx_src))
     else
-        only_in_dest+=(${dest_snapshots[idx_dest]})
+        only_in_dest+=("${dest_snapshots[idx_dest]}")
         ((++idx_dest))
     fi
 done
@@ -397,30 +392,29 @@ done
 # Add the rest to respective array.
 for (( ; idx_dest < num_dest_snapshots; ++idx_dest ))
 do
-    only_in_dest+=(${dest_snapshots[idx_dest]})
+    only_in_dest+=("${dest_snapshots[idx_dest]}")
 done
 
 for (( ; idx_src < num_src_snapshots; ++idx_src ))
 do
-    only_in_src+=(${src_snapshots[idx_src]})
+    only_in_src+=("${src_snapshots[idx_src]}")
 done
 
 ################################################################################
 # First argument is the snapshot to send.
 function single-backup {
-    $receiver create-snapshot $dest_root $1
-    [[ $? > 0 ]] && error "Failed to create snapshot at backup location!"
+    $receiver create-snapshot "$dest_root" "$1" ||
+        error "Failed to create snapshot at backup location!"
 
-    $sender send-info $src_root $1 | $receiver receive-info $dest_root $1
-    if [[ $? > 0 ]]
+    if ! $sender send-info "$src_root" "$1" | $receiver receive-info "$dest_root" "$1"
     then
-        $receiver remove-broken-snapshot $dest_root $1
+        $receiver remove-broken-snapshot "$dest_root" "$1"
         error "Failed to send snapshot info!"
     fi
-    $sender send-snapshot $src_root $1 | $receiver receive-snapshot $dest_root $1
-    if [[ $? > 0 ]]
+
+    if ! $sender send-snapshot "$src_root" "$1" | $receiver receive-snapshot "$dest_root" "$1"
     then
-        $receiver remove-broken-snapshot $dest_root $1
+        $receiver remove-broken-snapshot "$dest_root" "$1"
         error "Failed to send snapshot!"
     fi
 }
@@ -430,21 +424,19 @@ function single-backup {
 function incremental-backup {
     echo "Incremental backup"
 
-    $receiver create-snapshot $dest_root $2
-    [[ $? > 0 ]] && error "Failed to create snapshot at backup location!"
+    $receiver create-snapshot "$dest_root" "$2" ||
+        error "Failed to create snapshot at backup location!"
 
-    $sender send-info $src_root $2 | $receiver receive-info $dest_root $2
-    if [[ $? > 0 ]]
+    if ! $sender send-info "$src_root" "$2" | $receiver receive-info "$dest_root" "$2"
     then
-        $receiver remove-broken-snapshot $dest_root $1
+        $receiver remove-broken-snapshot "$dest_root" "$1"
         error "Failed to send snapshot info!"
     fi
 
-    $sender send-incremental-snapshot $subvolume/.snapshots/{$1,$2} \
-        | $receiver receive-snapshot $dest_root $2
-    if [[ $? > 0 ]]
+    if ! $sender send-incremental-snapshot "$subvolume/.snapshots/"{"$1","$2"} \
+            | $receiver receive-snapshot "$dest_root" "$2"
     then
-        $receiver remove-broken-snapshot $dest_root $1
+        $receiver remove-broken-snapshot "$dest_root" "$1"
         error "Failed to send snapshot!"
     fi
 }
@@ -457,14 +449,14 @@ function backup {
     fi
 
     local num_src_only=${#only_in_src[@]}
-    if [ $num_src_only -eq 0 ]
+    if [ "$num_src_only" -eq 0 ]
     then
         echo "Already backed up all snapshots"
         return 0
     fi
 
     # Destination doesn't have any snapshots, send the whole snapshot.
-    if [[ -z $common ]]
+    if [[ "${#common[@]}" == 0 ]]
     then
         echo "Initialize backup"
         if [ $p_all -eq 1 ]
@@ -475,11 +467,11 @@ function backup {
             # Pop the one that got sent from the array.
             only_in_src=("${only_in_src[@]:1}")
             ((--num_src_only))
-            single-backup $snapshot
-            common=$snapshot
+            single-backup "$snapshot"
+            common=("$snapshot")
         else
             # Send the specified snapshot
-            single-backup $p_snapshot
+            single-backup "$p_snapshot"
             return 0
         fi
     fi
@@ -488,11 +480,11 @@ function backup {
     then
         local common_last=${common[${#common[@]}-1]}
         # Check that it's not already synced
-        if [[ $common_last == $p_snapshot ]]
+        if [[ "$common_last" == "$p_snapshot" ]]
         then
             error "Already synced the last snapshot."
         fi
-        incremental-backup $common_last $p_snapshot
+        incremental-backup "$common_last" "$p_snapshot"
         return 0
     else
         # Find the first common snapshot that is lower than the first
@@ -507,11 +499,11 @@ function backup {
                 break
             fi
         done
-        incremental-backup ${common[idx]} $first_src_snapshot
+        incremental-backup "${common[idx]}" "$first_src_snapshot"
 
-        for (( idx=1; idx < $num_src_only; ++idx ))
+        for (( idx=1; idx < num_src_only; ++idx ))
         do
-            incremental-backup ${only_in_src[idx-1]} ${only_in_src[idx]}
+            incremental-backup "${only_in_src[idx-1]}" "${only_in_src[idx]}"
         done
     fi
 }
@@ -522,10 +514,10 @@ then
     echo -n "Are you sure you want to delete all backup snapshots from $dest_root? (y/N): "
     while true
     do
-        read answer
+        read -r answer
         case $answer in
             y|Y)
-                $receiver remove-snapshots $dest_root ${dest_snapshots[@]}
+                $receiver remove-snapshots "$dest_root" "${dest_snapshots[@]}"
                 break
                 ;;
             n|N|"")
@@ -539,10 +531,10 @@ elif [[ ${p_delete-0} == 0 ]]
 then
     backup
 else
-    $receiver remove-snapshots $dest_root ${p_delete_list[@]}
+    $receiver remove-snapshots "$dest_root" "${p_delete_list[@]}"
 fi
 
 if [[ ${p_prune-0} == 1 ]]
 then
-    $receiver remove-snapshots $dest_root ${only_in_dest[@]}
+    $receiver remove-snapshots "$dest_root" "${only_in_dest[@]}"
 fi
