@@ -3,7 +3,7 @@
 # Baksnapper - Backup snapper snapshots to backup location using
 # btrfs' incremental send and receive
 
-# Copyright (C) 2015-2018  Fredrik Salomonsson
+# Copyright (C) 2015-2020  Fredrik Salomonsson
 
 # This file is part of baksnapper
 
@@ -92,8 +92,8 @@ Fredrik "PlaTFooT" Salomonsson
 EOF
 
 read -rd '' version <<EOF
-baksnapper (baksnapper) 1.0.2
-Copyright (C) 2018  Fredrik Salomonsson
+baksnapper (baksnapper) 2.0.0
+Copyright (C) 2020  Fredrik Salomonsson
 License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.
