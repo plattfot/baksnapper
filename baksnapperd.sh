@@ -43,9 +43,14 @@ case "$1" in
         shift
         find "$1" -mindepth 1 -maxdepth 1 -printf "%f\n" | sort -g
         ;;
+    # Really bad name on this one, deprecating it
     list-snapper-snapshots) # List snapshots at source location
         shift
         warning "'list-snapper-snapshots' is deprecated, use 'get-snapper-root' instead."
+        snapper -c "$1" get-config | grep SUBVOLUME | awk '{ print $3 }'
+        ;;
+    get-snapper-root) # Return the location of the .snapshots directory
+        shift
         snapper -c "$1" get-config | grep SUBVOLUME | awk '{ print $3 }'
         ;;
     verify-snapshot)
