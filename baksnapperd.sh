@@ -39,6 +39,9 @@ function warning {
 }
 
 case "$1" in
+    version) # Return what version of the API it's using, always one integer
+        echo 2
+        ;;
     list-snapshots) # List snapshots at backup location
         shift
         find "$1" -mindepth 1 -maxdepth 1 -printf "%f\n" | sort -g
