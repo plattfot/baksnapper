@@ -334,6 +334,26 @@ case ${p_type="push"} in
     ;;
 esac
 
+if ! receiver_version=$($receiver version)
+then
+    error "receiver is too old, need to use version 2"
+fi
+
+if ! sender_version=$($sender version)
+then
+    error "sender is too old, need to use version 2"
+fi
+
+if [[ "$receiver_version" -gt 2 ]]
+then
+    error "receiver is too new, need to use version 2"
+fi
+
+if [[ "$sender_version" -gt 2 ]]
+then
+    error "sender is too new, need to use version 2"
+fi
+
 # Get the subvolume to backup
 subvolume=$($sender list-snapper-snapshots "$p_config")
 
