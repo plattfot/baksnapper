@@ -1,6 +1,6 @@
 # Maintainer: Fredrik Salomonsson <plattfot@gmail.com>
 pkgname=baksnapper
-pkgver=0.9.0
+pkgver=2.0.0
 pkgrel=1
 epoch=
 pkgdesc="Backup script for snapper snapshots."
@@ -18,15 +18,11 @@ replaces=()
 backup=()
 options=()
 install=
-changelog=ChangeLog
+changelog=
 source=("$pkgname-$pkgver::git+https://github.com/plattfot/baksnapper.git#tag=$pkgver")
 noextract=()
 md5sums=('SKIP')
 package() {
 	cd "$srcdir/$pkgname-$pkgver"
-	make install PREFIX="$pkgdir" BSCONF_ROOT=/etc 
+	make install PREFIX="$pkgdir" BSCONF_ROOT=/etc
 }
-
-
-
-
