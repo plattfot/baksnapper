@@ -336,26 +336,39 @@ esac
 
 if ! receiver_version=$($receiver version)
 then
-    error "receiver is too old, need to use version 2"
+    receiver_version=1
 fi
 
 if ! sender_version=$($sender version)
 then
-    error "sender is too old, need to use version 2"
+    sender_version=1
 fi
 
 if [[ "$receiver_version" -gt 2 ]]
 then
-    error "receiver is too new, need to use version 2"
+    error "receiver is too new, need to use version 2 or 1"
 fi
 
 if [[ "$sender_version" -gt 2 ]]
 then
-    error "sender is too new, need to use version 2"
+    error "sender is too new, need to use version 2 or 1"
 fi
 
 # Get the subvolume to backup
-subvolume=$($sender list-snapper-snapshots "$p_config")
+case $sender_version in
+    2)
+        subvolume=$($sender get-snapper-root "$p_config")
+        ;;
+    1)
+        if ! subvolume=$($sender list-snapper-snapshots "$p_config")
+        then
+            error "Something went wrong when fetching the snapper root from sender"
+        fi
+        ;;
+    *)
+        error "Unknown version for sender '$sender_version'"
+        ;;
+esac
 
 src_root=${subvolume:?}/.snapshots
 dest_root="$dest/$p_config"
@@ -363,11 +376,31 @@ dest_root="$dest/$p_config"
 $receiver create-config "$dest_root" || error "Problem creating config at backup location"
 
 # List all the snapshots available
-mapfile -t src_snapshots < <($sender list-snapshots "$src_root")
+case $sender_version in
+    2)
+        mapfile -t src_snapshots < <($sender list-snapshots "$src_root")
+        ;;
+    1)
+        mapfile -d' ' -t src_snapshots < <($sender list-snapshots "$src_root"|tr -d '\n')
+        ;;
+    *)
+        error "Unknown version for sender '$sender_version'"
+        ;;
+esac
 num_src_snapshots=${#src_snapshots[@]}
 
 # List all the snapshots at the backup location
-mapfile -t dest_snapshots < <($receiver list-snapshots "$dest_root")
+case $receiver_version in
+    2)
+        mapfile -t dest_snapshots < <($receiver list-snapshots "$dest_root")
+        ;;
+    1)
+        mapfile -d' ' -t dest_snapshots < <($receiver list-snapshots "$dest_root"|tr -d '\n')
+        ;;
+    *)
+        error "Unknown version for receiver '$receiver_version'"
+        ;;
+esac
 num_dest_snapshots=${#dest_snapshots[@]}
 
 if [[ -z $p_snapshot ]]
@@ -419,7 +452,6 @@ for (( ; idx_src < num_src_snapshots; ++idx_src ))
 do
     only_in_src+=("${src_snapshots[idx_src]}")
 done
-
 ################################################################################
 # First argument is the snapshot to send.
 function single-backup {
