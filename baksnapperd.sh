@@ -36,6 +36,11 @@ function warning {
     echo -e "[Warning] $1" 1>&2
 }
 
+function link-latest {
+    ln -s "$1/$(ls $1 | sort -k1,1nr | awk 'NR==1')" "$1/latest-tmp"
+    mv -T "$1/latest-tmp" "$1/latest"
+}
+
 case "$1" in
     version) # Return what version of the API it's using, always one integer
         echo 2
@@ -74,6 +79,7 @@ case "$1" in
     receive-snapshot)
         shift
         btrfs receive "$1/$2"
+        link-latest "$1"
         ;;
     send-info)
         shift
@@ -119,6 +125,7 @@ case "$1" in
             btrfs subvolume delete "$dest_root/$snapshot/snapshot"
         fi
         rm -r -- "${dest_root:?}/$snapshot"
+        link-latest "$dest_root"
         ;;
     test-connection)
         exit 0
