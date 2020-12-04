@@ -114,6 +114,7 @@ case "$1" in
                         "ignoring it."
             fi
         done
+        link-latest "$dest_root"
         ;;
     remove-broken-snapshot)
         shift
