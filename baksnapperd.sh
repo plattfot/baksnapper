@@ -43,8 +43,10 @@ function link-latest {
             arr+=("$dir")
         fi
     done
-    ln -s "${arr[-1]}" "$1/latest-tmp"
-    mv -T "$1/latest-tmp" "$1/latest"
+    if ! [ ${#arr[@]} -eq 0 ]; then
+        ln -s "${arr[-1]}" "$1/latest-tmp"
+        mv -T "$1/latest-tmp" "$1/latest"
+    fi
 }
 
 case "$1" in
