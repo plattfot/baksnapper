@@ -44,7 +44,7 @@ function link-latest {
         fi
     done
     if ! [ ${#arr[@]} -eq 0 ]; then
-        ln -s "${arr[-1]}" "$1/latest-tmp"
+        ln -sfn "${arr[-1]}" "$1/latest-tmp"
         mv -T "$1/latest-tmp" "$1/latest"
     fi
 }
