@@ -39,8 +39,10 @@ function warning {
 function link-latest {
     arr=()
     for dir in "$1"/*; do
-        if [[ -d "$dir/snapshot" ]]; then
-            arr+=("$dir")
+        if ! [[ $(echo "$dir" | grep "latest") ]]; then
+            if [[ -d "$dir/snapshot" ]]; then
+                arr+=("$dir")
+            fi
         fi
     done
     if ! [ ${#arr[@]} -eq 0 ]; then
