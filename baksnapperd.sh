@@ -37,7 +37,13 @@ function warning {
 }
 
 function link-latest {
-    ln -s "$1/$(ls $1 | sort -k1,1nr | awk 'NR==1')" "$1/latest-tmp"
+    arr=()
+    for dir in "$1"/*; do
+        if [[ -d "$dir/snapshot" ]]; then
+            arr+=("$dir")
+        fi
+    done
+    ln -s "${arr[-1]}" "$1/latest-tmp"
     mv -T "$1/latest-tmp" "$1/latest"
 }
 
