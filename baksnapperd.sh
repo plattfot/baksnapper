@@ -39,10 +39,8 @@ function warning {
 function link-latest {
     declare -a snapshots
     for dir in "$1"/*; do
-        if ! [[ $(echo "$dir" | grep "latest") ]]; then
-            if [[ -d "$dir/snapshot" ]]; then
-                snapshots+=("$dir")
-            fi
+        if [[ -d "$dir/snapshot" && ! -h "$dir" ]]; then
+            snapshots+=("$dir")
         fi
     done
     if ! [ ${#snapshots[@]} -eq 0 ]; then
