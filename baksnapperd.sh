@@ -55,7 +55,7 @@ case "$1" in
         ;;
     list-snapshots) # List snapshots at backup location
         shift
-        find "$1" -mindepth 1 -maxdepth 1 -printf "%f\n" | sort -g
+        find "$1" -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort -g
         ;;
     get-snapper-root) # Return the location of the .snapshots directory
         shift
