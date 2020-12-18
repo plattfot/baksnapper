@@ -37,16 +37,16 @@ function warning {
 }
 
 function link-latest {
-    arr=()
+    declare -a snapshots
     for dir in "$1"/*; do
         if ! [[ $(echo "$dir" | grep "latest") ]]; then
             if [[ -d "$dir/snapshot" ]]; then
-                arr+=("$dir")
+                snapshots+=("$dir")
             fi
         fi
     done
-    if ! [ ${#arr[@]} -eq 0 ]; then
-        ln -sfn "${arr[-1]}" "$1/latest-tmp"
+    if ! [ ${#snapshots[@]} -eq 0 ]; then
+        ln -sfn "${snapshots[-1]}" "$1/latest-tmp"
         mv -T "$1/latest-tmp" "$1/latest"
     fi
 }
