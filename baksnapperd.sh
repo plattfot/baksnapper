@@ -143,6 +143,8 @@ case "$1" in
         if ! [ ${#snapshots[@]} -eq 0 ]; then
             ln -sfn "${snapshots[-1]}" "$1/latest-tmp"
             mv -T "$1/latest-tmp" "$1/latest"
+        else
+            rm "$1/latest"
         fi
         ;;
     test-connection)
