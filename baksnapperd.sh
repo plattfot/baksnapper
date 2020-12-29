@@ -121,6 +121,7 @@ case "$1" in
         rm -r -- "${dest_root:?}/$snapshot"
         ;;
     link-latest)
+        shift
         declare -a snapshots
         for dir in "$1"/*; do
             if [[ -d "$dir/snapshot" && ! -h "$dir" ]]; then
