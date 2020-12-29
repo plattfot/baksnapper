@@ -99,6 +99,8 @@ This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.
 EOF
 
+LINK=0
+
 function error {
     echo "[ERROR] $1" 1>&2
     exit 1
@@ -467,6 +469,10 @@ function single-backup {
         $receiver remove-broken-snapshot "$dest_root" "$1"
         error "Failed to send snapshot!"
     fi
+    if [ $p_link -eq 1 ]
+    then
+        $receiver link-latest "$dest_root"
+    fi
 }
 # First argument is the reference snapshot and the second is the
 # snapshot to backup. It will only send the difference between the
@@ -488,6 +494,10 @@ function incremental-backup {
     then
         $receiver remove-broken-snapshot "$dest_root" "$1"
         error "Failed to send snapshot!"
+    fi
+    if [ $p_link -eq 1 ]
+    then
+        $receiver link-latest "$dest_root"
     fi
 }
 
@@ -568,6 +578,10 @@ then
         case $answer in
             y|Y)
                 $receiver remove-snapshots "$dest_root" "${dest_snapshots[@]}"
+                if [ $p_link -eq 1 ]
+                then
+                    $receiver link-latest "$dest_root"
+                fi
                 break
                 ;;
             n|N|"")
@@ -582,9 +596,17 @@ then
     backup
 else
     $receiver remove-snapshots "$dest_root" "${p_delete_list[@]}"
+    if [ $p_link -eq 1 ]
+    then
+        $receiver link-latest "$dest_root"
+    fi
 fi
 
 if [[ ${p_prune-0} == 1 ]]
 then
     $receiver remove-snapshots "$dest_root" "${only_in_dest[@]}"
+    if [ $p_link -eq 1 ]
+    then
+        $receiver link-latest "$dest_root"
+    fi
 fi

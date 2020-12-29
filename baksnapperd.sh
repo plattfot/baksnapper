@@ -87,7 +87,6 @@ case "$1" in
     receive-snapshot)
         shift
         btrfs receive "$1/$2"
-        link-latest "$1"
         ;;
     send-info)
         shift
@@ -122,7 +121,6 @@ case "$1" in
                         "ignoring it."
             fi
         done
-        link-latest "$dest_root"
         ;;
     remove-broken-snapshot)
         shift
@@ -134,7 +132,18 @@ case "$1" in
             btrfs subvolume delete "$dest_root/$snapshot/snapshot"
         fi
         rm -r -- "${dest_root:?}/$snapshot"
-        link-latest "$dest_root"
+        ;;
+    link-latest)
+        declare -a snapshots
+        for dir in "$1"/*; do
+            if [[ -d "$dir/snapshot" && ! -h "$dir" ]]; then
+                snapshots+=("$dir")
+            fi
+        done
+        if ! [ ${#snapshots[@]} -eq 0 ]; then
+            ln -sfn "${snapshots[-1]}" "$1/latest-tmp"
+            mv -T "$1/latest-tmp" "$1/latest"
+        fi
         ;;
     test-connection)
         exit 0
