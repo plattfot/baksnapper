@@ -55,6 +55,8 @@ Options:
 --type TYPE       Specify either to backup snapshots to a server
                   (push) or to backup snapshots from a server
                   (pull). Default is to push.
+                  
+--link            Create a "latest" directory linked to the latest snapshot
 
 -v, --verbose     Verbose print out.
 
@@ -165,6 +167,11 @@ function read-config {
                 parse-bool "$_value"
                 p_verbose=${p_verbose-$_bool}
                 ;;
+            LINK*=*)
+                get-value "$line"
+                parse-bool "$_value"
+                p_link=${p_link-$_bool}
+                ;;
             TYPE*=*)
                 get-value "$line"
                 p_type=${p_type-$_value}
@@ -237,6 +244,10 @@ case $key in
     --type)
         p_type=$2
         shift 2
+        ;;
+    --link)
+        p_link=1
+        shift
         ;;
     -v|--verbose)
         p_verbose=1
