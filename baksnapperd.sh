@@ -36,19 +36,6 @@ function warning {
     echo -e "[Warning] $1" 1>&2
 }
 
-function link-latest {
-    declare -a snapshots
-    for dir in "$1"/*; do
-        if [[ -d "$dir/snapshot" && ! -h "$dir" ]]; then
-            snapshots+=("$dir")
-        fi
-    done
-    if ! [ ${#snapshots[@]} -eq 0 ]; then
-        ln -sfn "${snapshots[-1]}" "$1/latest-tmp"
-        mv -T "$1/latest-tmp" "$1/latest"
-    fi
-}
-
 case "$1" in
     version) # Return what version of the API it's using, always one integer
         echo 2
