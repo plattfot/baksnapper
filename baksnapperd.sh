@@ -131,7 +131,8 @@ case "$1" in
         if ! [ ${#snapshots[@]} -eq 0 ]; then
             ln -sfn "${snapshots[-1]}" "$1/latest-tmp"
             mv -T "$1/latest-tmp" "$1/latest"
-        else
+        elif [[ -e "$1/latest" ]]
+        then
             rm "$1/latest"
         fi
         ;;
