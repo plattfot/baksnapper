@@ -505,7 +505,7 @@ function incremental-backup {
         $receiver remove-broken-snapshot "$dest_root" "$1"
         error "Failed to send snapshot!"
     fi
-    if [ $p_link -eq 1 ]
+    if [[ $p_link -eq 1 ]]
     then
         $receiver link-latest "$dest_root"
     fi
