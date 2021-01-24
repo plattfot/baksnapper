@@ -1,3 +1,6 @@
+2021-01-23 Fredrik Salomonsson <plattfot@posteo.net>
+	* 2.1.0 :
+	Feature for creating a symlink to the latest snapshot - by Nathan Dehnel.
 2020-08-14 Fredrik Salomonsson <plattfot@gmail.com>
 	* 2.0.0 :
 	Cleaned up a bunch of warnings and erros reported by shellcheck.
