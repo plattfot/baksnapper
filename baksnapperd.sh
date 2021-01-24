@@ -3,6 +3,7 @@
 # Baksnapperd - Daemon used by baksnapper when backup via ssh
 
 # Copyright (C) 2015-2021  Fredrik Salomonsson <plattfot@posteo.net>
+# Copyright (C) 2021  Nathan Dehnel
 
 # This file is part of baksnapper
 
@@ -42,7 +43,7 @@ case "$1" in
         ;;
     list-snapshots) # List snapshots at backup location
         shift
-        find "$1" -mindepth 1 -maxdepth 1 -printf "%f\n" | sort -g
+        find "$1" -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort -g
         ;;
     get-snapper-root) # Return the location of the .snapshots directory
         shift
@@ -119,6 +120,22 @@ case "$1" in
             btrfs subvolume delete "$dest_root/$snapshot/snapshot"
         fi
         rm -r -- "${dest_root:?}/$snapshot"
+        ;;
+    link-latest)
+        shift
+        declare -a snapshots
+        for dir in "$1"/*; do
+            if [[ -d "$dir/snapshot" && ! -h "$dir" ]]; then
+                snapshots+=("$dir")
+            fi
+        done
+        if ! [ ${#snapshots[@]} -eq 0 ]; then
+            ln -sfn "${snapshots[-1]}" "$1/latest-tmp"
+            mv -T "$1/latest-tmp" "$1/latest"
+        elif [[ -h "$1/latest" ]]
+        then
+            rm "$1/latest"
+        fi
         ;;
     test-connection)
         exit 0

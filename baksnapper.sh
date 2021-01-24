@@ -4,6 +4,7 @@
 # btrfs' incremental send and receive
 
 # Copyright (C) 2015-2021  Fredrik Salomonsson <plattfot@posteo.net>
+# Copyright (C) 2021  Nathan Dehnel
 
 # This file is part of baksnapper
 
@@ -55,6 +56,8 @@ Options:
 --type TYPE       Specify either to backup snapshots to a server
                   (push) or to backup snapshots from a server
                   (pull). Default is to push.
+
+--link            Create a "latest" directory linked to the latest snapshot
 
 -v, --verbose     Verbose print out.
 
@@ -163,6 +166,11 @@ function read-config {
                 parse-bool "$_value"
                 p_verbose=${p_verbose-$_bool}
                 ;;
+            LINK*=*)
+                get-value "$line"
+                parse-bool "$_value"
+                p_link=${p_link-$_bool}
+                ;;
             TYPE*=*)
                 get-value "$line"
                 p_type=${p_type-$_value}
@@ -179,7 +187,7 @@ function read-config {
 
 # Use getopt to parse the command-line arguments
 
-if ! _args=$(getopt --name "baksnapper" --options "adhvp" --long "config:,configfile:,delete:,daemon:,private-key:,snapshot:,type:,all,delete-all,help,prune,verbose,version" -- "$@")
+if ! _args=$(getopt --name "baksnapper" --options "adhvp" --long "config:,configfile:,delete:,daemon:,private-key:,snapshot:,type:,all,delete-all,help,prune,verbose,version,link" -- "$@")
 then
     error "Try '$0 --help for more information.'"
 fi
@@ -235,6 +243,10 @@ case $key in
     --type)
         p_type=$2
         shift 2
+        ;;
+    --link)
+        p_link=1
+        shift
         ;;
     -v|--verbose)
         p_verbose=1
@@ -467,6 +479,10 @@ function single-backup {
         $receiver remove-broken-snapshot "$dest_root" "$1"
         error "Failed to send snapshot!"
     fi
+    if [[ $p_link -eq 1 ]]
+    then
+        $receiver link-latest "$dest_root"
+    fi
 }
 # First argument is the reference snapshot and the second is the
 # snapshot to backup. It will only send the difference between the
@@ -488,6 +504,10 @@ function incremental-backup {
     then
         $receiver remove-broken-snapshot "$dest_root" "$1"
         error "Failed to send snapshot!"
+    fi
+    if [[ $p_link -eq 1 ]]
+    then
+        $receiver link-latest "$dest_root"
     fi
 }
 
@@ -568,6 +588,10 @@ then
         case $answer in
             y|Y)
                 $receiver remove-snapshots "$dest_root" "${dest_snapshots[@]}"
+                if [[ $p_link -eq 1 ]]
+                then
+                    $receiver link-latest "$dest_root"
+                fi
                 break
                 ;;
             n|N|"")
@@ -582,9 +606,17 @@ then
     backup
 else
     $receiver remove-snapshots "$dest_root" "${p_delete_list[@]}"
+    if [[ $p_link -eq 1 ]]
+    then
+        $receiver link-latest "$dest_root"
+    fi
 fi
 
 if [[ ${p_prune-0} == 1 ]]
 then
     $receiver remove-snapshots "$dest_root" "${only_in_dest[@]}"
+    if [[ $p_link -eq 1 ]]
+    then
+        $receiver link-latest "$dest_root"
+    fi
 fi

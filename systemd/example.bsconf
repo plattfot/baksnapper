@@ -25,3 +25,6 @@ CONFIG = root # This is an inline comment
 
 # If the baksnapper daemon is called something else, change the name here.
 #DAEMON=baksnapperd
+
+# Create a "latest" directory linked to the latest snapshot
+#LINK= NO
