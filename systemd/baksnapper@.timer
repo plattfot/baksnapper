@@ -1,5 +1,6 @@
 [Unit]
 Description=Run baksnapper@%i each night
+After=network-online.target
 
 [Timer]
 OnCalendar=00:20
