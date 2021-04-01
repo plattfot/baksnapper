@@ -1,3 +1,6 @@
+2021-04-01 Fredrik Salomonsson <plattfot@posteo.net>
+	* 2.1.1 :
+	Delay startup until after network-online.target for systemd timmer - by Nathan Dehnel.
 2021-01-23 Fredrik Salomonsson <plattfot@posteo.net>
 	* 2.1.0 :
 	Feature for creating a symlink to the latest snapshot - by Nathan Dehnel.

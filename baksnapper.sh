@@ -95,7 +95,7 @@ Fredrik "PlaTFooT" Salomonsson
 EOF
 
 read -rd '' version <<EOF
-baksnapper (baksnapper) 2.1.0
+baksnapper (baksnapper) 2.1.1
 Copyright (C) 2015-2021  Fredrik Salomonsson
 Copyright (C) 2021  Nathan Dehnel
 License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
