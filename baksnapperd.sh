@@ -48,7 +48,7 @@ case "$1" in
         ;;
     get-snapper-root) # Return the location of the .snapshots directory
         shift
-        snapper -c "$1" get-config | grep SUBVOLUME | awk '{ print $3 }'
+        snapper --no-dbus -c "$1" get-config | grep SUBVOLUME | awk '{ print $3 }'
         ;;
     verify-snapshot)
         shift
