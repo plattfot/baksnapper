@@ -3,7 +3,7 @@
 # Baksnapperd - Daemon used by baksnapper when backup via ssh
 
 # Copyright (C) 2015-2021  Fredrik Salomonsson <plattfot@posteo.net>
-# Copyright (C) 2021  Nathan Dehnel
+# Copyright (C) 2021-2022  Nathan Dehnel
 
 # This file is part of baksnapper
 
@@ -48,7 +48,7 @@ case "$1" in
         ;;
     get-snapper-root) # Return the location of the .snapshots directory
         shift
-        snapper -c "$1" get-config | grep SUBVOLUME | awk '{ print $3 }'
+        snapper --no-dbus -c "$1" get-config | grep SUBVOLUME | awk '{ print $3 }'
         ;;
     verify-snapshot)
         shift
