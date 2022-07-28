@@ -3,7 +3,7 @@
 # Baksnapperd - Daemon used by baksnapper when backup via ssh
 
 # Copyright (C) 2015-2021  Fredrik Salomonsson <plattfot@posteo.net>
-# Copyright (C) 2021-2022  Nathan Dehnel
+# Copyright (C) 2021  Nathan Dehnel
 
 # This file is part of baksnapper
 
