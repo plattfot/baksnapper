@@ -547,6 +547,12 @@ function backup {
         fi
     fi
 
+    # If source only contained one snapshot, then we are done.
+    if [ "$num_src_only" -eq 0 ]
+    then
+        return 0
+    fi
+
     if [[ $p_all == 0 ]]
     then
         local common_last=${common[${#common[@]}-1]}
