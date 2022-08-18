@@ -1,3 +1,7 @@
+2022-08-18 Fredrik Salomonsson <plattfot@posteo.net>
+	* 2.2.0 :
+	Allow baksnapper to run without dbus - by Nathan Dehnel.
+	Fixed issue that baksnapper fails when there is only one snapshot to backup.
 2021-04-01 Fredrik Salomonsson <plattfot@posteo.net>
 	* 2.1.1 :
 	Delay startup until after network-online.target for systemd timmer - by Nathan Dehnel.
