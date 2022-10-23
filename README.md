@@ -39,10 +39,10 @@ Will install everything into the directory pkg, and the systemd unit
 file will search for the config files in /etc/baksnapper/.
 
 ### Arch Linux
-Clone my aur repo and then build the package using the PKBUILD:
+Clone this repo and then build the package using the PKBUILD:
 ```bash
-$ git clone git@bitbucket.org:plattfot/aur.git
-$ cd aur/baksnapper
+$ git clone https://github.com/plattfot/baksnapper.git
+$ cd build-aux/baksnapper
 $ makepkg -ic
 ```
 ## Features
