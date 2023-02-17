@@ -125,7 +125,7 @@ case "$1" in
     link-latest)
         shift
         declare -a snapshots
-        for dir in "$1"/*; do
+         for dir in $( ls -d  -1v "$1"/**/ ); do
             if [[ -d "$dir/snapshot" && ! -h "$dir" ]]; then
                 snapshots+=("$dir")
             fi
