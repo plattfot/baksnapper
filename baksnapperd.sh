@@ -4,6 +4,7 @@
 
 # Copyright (C) 2015-2021  Fredrik Salomonsson <plattfot@posteo.net>
 # Copyright (C) 2021-2022  Nathan Dehnel
+# Copyright (C) 2023       Juergen Gleiss
 
 # This file is part of baksnapper
 
@@ -125,17 +126,16 @@ case "$1" in
     link-latest)
         shift
         declare -a snapshots
-         for dir in $( ls -d  -1v "$1"/**/ ); do
+        if [[ -h "$1/latest" ]]; then
+            rm "$1/latest"
+        fi
+        for dir in $( ls -d1v "$1"/* ); do
             if [[ -d "$dir/snapshot" && ! -h "$dir" ]]; then
                 snapshots+=("$dir")
             fi
         done
         if ! [ ${#snapshots[@]} -eq 0 ]; then
-            ln -sfn "${snapshots[-1]}" "$1/latest-tmp"
-            mv -T "$1/latest-tmp" "$1/latest"
-        elif [[ -h "$1/latest" ]]
-        then
-            rm "$1/latest"
+            ln -sfn "${snapshots[-1]}" "$1/latest"
         fi
         ;;
     test-connection)
