@@ -126,8 +126,12 @@ case "$1" in
     link-latest)
         shift
         declare -a snapshots
-        if [[ -h "$1/latest" ]]; then
-            rm "$1/latest"
+        if [[ -e "$1/latest" ]]; then
+            if [[ -h "$1/latest" ]]; then
+                rm "$1/latest"
+            else
+                error "$1/latest exists and is not a symbolic link. Link is not created."
+            fi
         fi
         for dir in $( ls -d1v "$1"/* ); do
             if [[ -d "$dir/snapshot" && ! -h "$dir" ]]; then
