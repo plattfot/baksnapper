@@ -22,9 +22,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 read -rd '' version <<EOF
-baksnapperd (baksnapper) 2.2.0
+baksnapperd (baksnapper) 2.2.1
 Copyright (C) 2015-2021  Fredrik Salomonsson
 Copyright (C) 2021-2022  Nathan Dehnel
+Copyright (C) 2023       Juergen Gleiss
 License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.

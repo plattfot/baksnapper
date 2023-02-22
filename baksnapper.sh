@@ -4,7 +4,7 @@
 # btrfs' incremental send and receive
 
 # Copyright (C) 2015-2021  Fredrik Salomonsson <plattfot@posteo.net>
-# Copyright (C) 2021  Nathan Dehnel
+# Copyright (C) 2021       Nathan Dehnel
 
 # This file is part of baksnapper
 
@@ -95,9 +95,9 @@ Fredrik "PlaTFooT" Salomonsson
 EOF
 
 read -rd '' version <<EOF
-baksnapper (baksnapper) 2.2.0
+baksnapper (baksnapper) 2.2.1
 Copyright (C) 2015-2021  Fredrik Salomonsson
-Copyright (C) 2021  Nathan Dehnel
+Copyright (C) 2021       Nathan Dehnel
 License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.
