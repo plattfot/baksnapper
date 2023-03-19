@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2023 Fredrik Salomonsson <plattfot@posteo.net>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 PREFIX ?= /
 PREFIX_BIN ?= $(PREFIX)/usr/bin
 PREFIX_LIB ?= $(PREFIX)/usr/lib

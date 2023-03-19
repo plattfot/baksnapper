@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2023 Fredrik Salomonsson <plattfot@posteo.net>
+
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
+
 # Baksnapper - backup script for snapper
 Baksnapper is a script for backing up snapshots created by the program snapper using btrfs send and receive.
 

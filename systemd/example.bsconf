@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2023 Fredrik Salomonsson <plattfot@posteo.net>
+#
+# SPDX-License-Identifier: CC0-1.0
+
 # Example baksnapper config file
 #
 # To make baksnapper read this config file use -f or --configfile and

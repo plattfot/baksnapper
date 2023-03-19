@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2023 Fredrik Salomonsson <plattfot@posteo.net>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 [Unit]
 Description=Backup snapper snapshots to backup location described by the config file: <BSCONF_ROOT>/baksnapper/%I
 

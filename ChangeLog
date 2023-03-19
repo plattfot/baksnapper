@@ -1,3 +1,7 @@
+SPDX-FileCopyrightText: 2023 Fredrik Salomonsson <plattfot@posteo.net>
+
+SPDX-License-Identifier: GPL-3.0-or-later
+
 2023-02-21 Fredrik Salomonsson <plattfot@posteo.net>
 	* 2.2.1 :
 	Proper sort the snapshots to always link the latest - by Juergen Gleiss.
