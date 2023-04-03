@@ -401,13 +401,6 @@ case $receiver_version in
 esac
 num_dest_snapshots=${#dest_snapshots[@]}
 
-if [[ -z $p_snapshot ]]
-then
-    p_snapshot=${src_snapshots[num_src_snapshots-1]}
-else
-    $sender verify-snapshot "$src_root/$p_snapshot" || exit 1
-fi
-
 ################################################################################
 # Compare source and destination location and sort the snapshots into:
 # common: exist at both locations
@@ -504,6 +497,13 @@ function backup {
     if [[ $num_src_snapshots == 0 ]]
     then
         error "No snapshots found."
+    fi
+
+    if [[ -z $p_snapshot ]]
+    then
+        p_snapshot=${src_snapshots[num_src_snapshots-1]}
+    else
+        $sender verify-snapshot "$src_root/$p_snapshot" || exit 1
     fi
 
     local num_src_only=${#only_in_src[@]}
