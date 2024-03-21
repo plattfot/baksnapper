@@ -517,7 +517,7 @@ function backup {
     if [[ "${#common[@]}" == 0 ]]
     then
         echo "Initialize backup"
-        if [ $p_all -eq 1 ]
+        if [ "$p_all" -eq 1 ]
         then
             # Send the first snapshot as a whole then the rest will be
             # sent incremental.
