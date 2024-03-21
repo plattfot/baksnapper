@@ -366,14 +366,14 @@ then
     sender_version=1
 fi
 
-if [[ "$receiver_version" -gt 2 ]]
+if [[ "$receiver_version" -gt 3 ]]
 then
-    error "receiver is too new, need to use version 2 or 1"
+    error "receiver is too new, need to use version 1-3"
 fi
 
-if [[ "$sender_version" -gt 2 ]]
+if [[ "$sender_version" -gt 3 ]]
 then
-    error "sender is too new, need to use version 2 or 1"
+    error "sender is too new, need to use version 1-3"
 fi
 
 # Get the subvolume to backup
