@@ -277,6 +277,7 @@ p_all=${p_all=0}
 [[ -z $p_dest ]] && error "No path specified!"
 
 function exit-msg {
+    # shellcheck disable=SC2317
     notify-send -u critical "Done backing up $p_config. Safe to turn off computer."
 }
 
