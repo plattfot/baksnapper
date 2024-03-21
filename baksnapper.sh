@@ -597,7 +597,24 @@ function backup {
 }
 
 # Main:
-if [[ ${p_delete_all-0} == 1 ]]
+if [[ ${p_clean-0} == 1 ]]
+then
+    if [[ $receiver_version -lt 3 ]]
+    then
+        error "Daemon is too old, got version $receiver_version, need at least version 3."
+    fi
+    for snapshot in "${dest_snapshots[@]}"
+    do
+        if $receiver incomplete-snapshot "$dest_root" "$snapshot"
+        then
+            $receiver remove-broken-snapshot  "$dest_root" "$snapshot"
+        fi
+    done
+    if [[ $p_link -eq 1 ]]
+    then
+        $receiver link-latest "$dest_root"
+    fi
+elif [[ ${p_delete_all-0} == 1 ]]
 then
     echo -n "Are you sure you want to delete all backup snapshots from $dest_root? (y/N): "
     while true
