@@ -38,6 +38,9 @@ Options:
 
 --delete-all      Delete all backup snapshots for config
 
+--clean           Delete all incomplete backup snapshots for config.
+                  Use if backup got interrupted.
+
 --snapshot NUMBER Backup specific snapshot NUMBER, default is the last one.
 
 --type TYPE       Specify either to backup snapshots to a server
@@ -175,7 +178,24 @@ function read-config {
 
 # Use getopt to parse the command-line arguments
 
-if ! _args=$(getopt --name "baksnapper" --options "adhvp" --long "config:,configfile:,delete:,daemon:,private-key:,snapshot:,type:,all,delete-all,help,prune,verbose,version,link" -- "$@")
+if ! _args=$(getopt --name "baksnapper" \
+             --options "adhvp" \
+             --long config: \
+             --long configfile: \
+             --long delete: \
+             --long daemon: \
+             --long private-key: \
+             --long snapshot: \
+             --long type: \
+             --long all \
+             --long delete-all \
+             --long clean \
+             --long help \
+             --long prune \
+             --long verbose \
+             --long version \
+             --long link \
+             -- "$@")
 then
     error "Try '$0 --help for more information.'"
 fi
@@ -198,6 +218,9 @@ case $key in
     --configfile)
         read-config "$2"
         shift 2
+        ;;
+    --clean)
+        p_clean=1
         ;;
     --delete)
         p_delete=1
