@@ -29,7 +29,7 @@ function warning {
 
 case "$1" in
     version) # Return what version of the API it's using, always one integer
-        echo 2
+        echo 3
         ;;
     list-snapshots) # List snapshots at backup location
         shift
