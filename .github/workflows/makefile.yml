@@ -13,6 +13,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-
+    - name: Create install directory
+      run: mkdir -p build/{usr/bin,usr/lib,etc}
     - name: Build and install
-      run: make install
+      run: make install PREFIX=build
