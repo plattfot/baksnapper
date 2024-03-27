@@ -121,7 +121,8 @@ case "$1" in
                 error "$1/latest exists and is not a symbolic link. Link is not created."
             fi
         fi
-        for dir in $( ls -d1v "$1"/* ); do
+        for dir in $(find "$1" -maxdepth 1 -mindepth 1 -type d -printf "%P\n"|sort --version-sort)
+        do
             if [[ -d "$dir/snapshot" && ! -h "$dir" ]]; then
                 snapshots+=("$dir")
             fi
