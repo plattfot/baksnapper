@@ -89,8 +89,8 @@ case "$1" in
                                         -maxdepth 1 -mindepth 1 -printf "%f\n" 2> /dev/null | \
                                        sort)
             if [[ ${#content[@]} == 2 && \
-                  ${content[0]} == "info.xml" && \
-                  ${content[1]} == "snapshot" ]]; then
+                  "${content[0]}" == "info.xml" && \
+                  "${content[1]}" == "snapshot" ]]; then
                 echo "Deleting snapshot $snapshot"
                 btrfs subvolume delete "$dest_root/$snapshot/snapshot"
                 rm -r -- "${dest_root:?}/$snapshot"
@@ -105,7 +105,7 @@ case "$1" in
         dest_root=$1
         shift
         snapshot=$1
-        if [[ -d $dest_root/$snapshot/snapshot ]]
+        if [[ -d "$dest_root/$snapshot/snapshot" ]]
         then
             btrfs subvolume delete "$dest_root/$snapshot/snapshot"
         fi

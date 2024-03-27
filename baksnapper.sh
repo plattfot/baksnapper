@@ -481,7 +481,7 @@ function incremental-backup {
         error "Failed to send snapshot info!"
     fi
 
-    if ! $sender send-incremental-snapshot "$subvolume/.snapshots/"{"$1","$2"} \
+    if ! $sender send-incremental-snapshot "$src_root/"{"$1","$2"} \
             | $receiver receive-snapshot "$dest_root" "$2"
     then
         $receiver remove-broken-snapshot "$dest_root" "$1"
