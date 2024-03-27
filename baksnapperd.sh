@@ -105,7 +105,7 @@ case "$1" in
         dest_root=$1
         shift
         snapshot=$1
-        if [[ -d $dest_root/$snapshot/snapshot ]]
+        if [[ -d "$dest_root/$snapshot/snapshot" ]]
         then
             btrfs subvolume delete "$dest_root/$snapshot/snapshot"
         fi
