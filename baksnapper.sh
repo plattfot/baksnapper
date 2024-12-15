@@ -573,6 +573,15 @@ function backup {
         return 0
     fi
 
+    if [[ $receiver_version -ge 3 ]]
+    then
+        echo "Clean up any broken or incomplete snapshots at destination"
+        cleanup-broken-snapshots
+        # snapshots at dest could have be removed, gather the snapshots again.
+        gather-receiver-snapshots
+        compare-snapshots
+    fi
+
     # Destination doesn't have any snapshots, send the whole snapshot.
     if [[ "${#common[@]}" == 0 ]]
     then
