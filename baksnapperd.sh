@@ -29,7 +29,7 @@ function warning {
 
 case "$1" in
     version) # Return what version of the API it's using, always one integer
-        echo 2
+        echo 3
         ;;
     list-snapshots) # List snapshots at backup location
         shift
@@ -42,6 +42,12 @@ case "$1" in
     verify-snapshot)
         shift
         find "$1" &> /dev/null || error "Snapshot $1 doesn't exist."
+        ;;
+    incomplete-snapshot)
+        shift
+        [[ ! -f "$1/$2/info.xml" ]] || \
+        [[ ! -d "$1/$2/snapshot" ]] || \
+        [[ $(btrfs property get "$1/$2/snapshot" ro) != "ro=true" ]]
         ;;
     create-config)
         shift
