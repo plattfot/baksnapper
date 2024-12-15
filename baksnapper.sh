@@ -3,7 +3,7 @@
 # Baksnapper - Backup snapper snapshots to backup location using
 # btrfs' incremental send and receive
 
-# SPDX-FileCopyrightText: 2015-2023  Fredrik Salomonsson <plattfot@posteo.net>
+# SPDX-FileCopyrightText: 2015-2024  Fredrik Salomonsson <plattfot@posteo.net>
 # SPDX-FileCopyrightText: 2021       Nathan Dehnel
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
