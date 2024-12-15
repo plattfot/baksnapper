@@ -221,6 +221,7 @@ case $key in
         ;;
     --clean)
         p_clean=1
+        shift
         ;;
     --delete)
         p_delete=1
