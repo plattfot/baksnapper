@@ -379,7 +379,7 @@ fi
 
 # Get the subvolume to backup
 case $sender_version in
-    2)
+    2|3)
         subvolume=$($sender get-snapper-root "$p_config")
         ;;
     1)
@@ -400,7 +400,7 @@ $receiver create-config "$dest_root" || error "Problem creating config at backup
 
 # List all the snapshots available
 case $sender_version in
-    2)
+    2|3)
         mapfile -t src_snapshots < <($sender list-snapshots "$src_root")
         ;;
     1)
@@ -414,7 +414,7 @@ num_src_snapshots=${#src_snapshots[@]}
 
 # List all the snapshots at the backup location
 case $receiver_version in
-    2)
+    2|3)
         mapfile -t dest_snapshots < <($receiver list-snapshots "$dest_root")
         ;;
     1)
