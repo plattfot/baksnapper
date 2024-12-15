@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /usr/bin/env bash
 
 # Baksnapper - Backup snapper snapshots to backup location using
 # btrfs' incremental send and receive
