@@ -522,6 +522,21 @@ function incremental-backup {
     fi
 }
 
+# Goes over the dest snapshots and delete any broken or incomplete.
+function cleanup-broken-snapshots {
+    for snapshot in "${dest_snapshots[@]}"
+    do
+        if $receiver incomplete-snapshot "$dest_root" "$snapshot"
+        then
+            $receiver remove-broken-snapshot  "$dest_root" "$snapshot"
+        fi
+    done
+    if [[ $p_link -eq 1 ]]
+    then
+        $receiver link-latest "$dest_root"
+    fi
+}
+
 # Main logic for the backup
 function backup {
     if [[ $num_src_snapshots == 0 ]]
@@ -609,17 +624,7 @@ case $p_command in
         then
             error "Daemon is too old, got version $receiver_version, need at least version 3."
         fi
-        for snapshot in "${dest_snapshots[@]}"
-        do
-            if $receiver incomplete-snapshot "$dest_root" "$snapshot"
-            then
-                $receiver remove-broken-snapshot  "$dest_root" "$snapshot"
-            fi
-        done
-        if [[ $p_link -eq 1 ]]
-        then
-            $receiver link-latest "$dest_root"
-        fi
+        cleanup-broken-snapshots
         ;;
     delete)
         $receiver remove-snapshots "$dest_root" "${p_delete_list[@]}"
