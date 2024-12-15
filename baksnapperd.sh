@@ -2,7 +2,7 @@
 
 # Baksnapperd - Daemon used by baksnapper when backup via ssh
 
-# SPDX-FileCopyrightText: 2015-2023  Fredrik Salomonsson <plattfot@posteo.net>
+# SPDX-FileCopyrightText: 2015-2024  Fredrik Salomonsson <plattfot@posteo.net>
 # SPDX-FileCopyrightText: 2021-2022  Nathan Dehnel
 # SPDX-FileCopyrightText: 2023       Juergen Gleiss
 #

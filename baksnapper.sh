@@ -1,9 +1,9 @@
-#! /bin/bash
+#! /usr/bin/env bash
 
 # Baksnapper - Backup snapper snapshots to backup location using
 # btrfs' incremental send and receive
 
-# SPDX-FileCopyrightText: 2015-2023  Fredrik Salomonsson <plattfot@posteo.net>
+# SPDX-FileCopyrightText: 2015-2024  Fredrik Salomonsson <plattfot@posteo.net>
 # SPDX-FileCopyrightText: 2021       Nathan Dehnel
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
@@ -202,11 +202,29 @@ fi
 
 eval set -- "$_args"
 
+# Default behavior is to backup
+p_command="backup"
+
 # Parse options
 while [[ $# -gt 0 ]]
 do
 key=$1
 case $key in
+    # Commands
+    --clean)
+        p_command=clean
+        shift
+        ;;
+    --delete)
+        p_command=delete
+        p_delete_list=${2//,/ }
+        shift 2
+        ;;
+    --delete-all)
+        p_command=delete-all
+        shift
+        ;;
+    # Options
     -a|--all)
         p_all=1
         shift
@@ -218,19 +236,6 @@ case $key in
     --configfile)
         read-config "$2"
         shift 2
-        ;;
-    --clean)
-        p_clean=1
-        shift
-        ;;
-    --delete)
-        p_delete=1
-        p_delete_list=${2//,/ }
-        shift 2
-        ;;
-    --delete-all)
-        shift
-        p_delete_all=1
         ;;
     --daemon)
         p_baksnapperd=$2
@@ -598,55 +603,57 @@ function backup {
 }
 
 # Main:
-if [[ ${p_clean-0} == 1 ]]
-then
-    if [[ $receiver_version -lt 3 ]]
-    then
-        error "Daemon is too old, got version $receiver_version, need at least version 3."
-    fi
-    for snapshot in "${dest_snapshots[@]}"
-    do
-        if $receiver incomplete-snapshot "$dest_root" "$snapshot"
+case $p_command in
+    clean)
+        if [[ $receiver_version -lt 3 ]]
         then
-            $receiver remove-broken-snapshot  "$dest_root" "$snapshot"
+            error "Daemon is too old, got version $receiver_version, need at least version 3."
         fi
-    done
-    if [[ $p_link -eq 1 ]]
-    then
-        $receiver link-latest "$dest_root"
-    fi
-elif [[ ${p_delete_all-0} == 1 ]]
-then
-    echo -n "Are you sure you want to delete all backup snapshots from $dest_root? (y/N): "
-    while true
-    do
-        read -r answer
-        case $answer in
-            y|Y)
-                $receiver remove-snapshots "$dest_root" "${dest_snapshots[@]}"
-                if [[ $p_link -eq 1 ]]
-                then
-                    $receiver link-latest "$dest_root"
-                fi
-                break
-                ;;
-            n|N|"")
-                ;;
-            *)
-                echo -ne "Please answer y or n.\n(y/N): "
-                ;;
-        esac
-    done
-elif [[ ${p_delete-0} == 0 ]]
-then
-    backup
-else
-    $receiver remove-snapshots "$dest_root" "${p_delete_list[@]}"
-    if [[ $p_link -eq 1 ]]
-    then
-        $receiver link-latest "$dest_root"
-    fi
-fi
+        for snapshot in "${dest_snapshots[@]}"
+        do
+            if $receiver incomplete-snapshot "$dest_root" "$snapshot"
+            then
+                $receiver remove-broken-snapshot  "$dest_root" "$snapshot"
+            fi
+        done
+        if [[ $p_link -eq 1 ]]
+        then
+            $receiver link-latest "$dest_root"
+        fi
+        ;;
+    delete)
+        $receiver remove-snapshots "$dest_root" "${p_delete_list[@]}"
+        if [[ $p_link -eq 1 ]]
+        then
+            $receiver link-latest "$dest_root"
+        fi
+        ;;
+    delete-all)
+        echo -n "Are you sure you want to delete all backup snapshots from $dest_root? (y/N): "
+        while true
+        do
+            read -r answer
+            case $answer in
+                y|Y)
+                    $receiver remove-snapshots "$dest_root" "${dest_snapshots[@]}"
+                    if [[ $p_link -eq 1 ]]
+                    then
+                        $receiver link-latest "$dest_root"
+                    fi
+                    break
+                    ;;
+                n|N|"")
+                    ;;
+                *)
+                    echo -ne "Please answer y or n.\n(y/N): "
+                    ;;
+            esac
+        done
+        ;;
+    *) # Default to running the backup
+        backup
+    ;;
+esac
 
 if [[ ${p_prune-0} == 1 ]]
 then
