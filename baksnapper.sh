@@ -280,6 +280,7 @@ case $key in
 esac
 done
 
+## Setup #######################################################################
 while [[ $# -gt 0 ]]
 do
     case $1 in
@@ -403,77 +404,90 @@ dest_root="$dest/$p_config"
 
 $receiver create-config "$dest_root" || error "Problem creating config at backup location"
 
-# List all the snapshots available
-case $sender_version in
-    2|3)
-        mapfile -t src_snapshots < <($sender list-snapshots "$src_root")
-        ;;
-    1)
-        mapfile -d' ' -t src_snapshots < <($sender list-snapshots "$src_root"|tr -d '\n')
-        ;;
-    *)
-        error "Unknown version for sender '$sender_version'"
-        ;;
-esac
-num_src_snapshots=${#src_snapshots[@]}
+## Function definitions ########################################################
 
-# List all the snapshots at the backup location
-case $receiver_version in
-    2|3)
-        mapfile -t dest_snapshots < <($receiver list-snapshots "$dest_root")
-        ;;
-    1)
-        mapfile -d' ' -t dest_snapshots < <($receiver list-snapshots "$dest_root"|tr -d '\n')
-        ;;
-    *)
-        error "Unknown version for receiver '$receiver_version'"
-        ;;
-esac
-num_dest_snapshots=${#dest_snapshots[@]}
+# Gather all the snapshots available at the source.
+# src_snapshosts: array containing the snapshots
+# num_src_snapshots: the size of src_snapshots
+function gather-sender-snapshots {
+    # List all the snapshots available
+    case $sender_version in
+        2|3)
+            mapfile -t src_snapshots < <($sender list-snapshots "$src_root")
+            ;;
+        1)
+            mapfile -d' ' -t src_snapshots < <($sender list-snapshots "$src_root"|tr -d '\n')
+            ;;
+        *)
+            error "Unknown version for sender '$sender_version'"
+            ;;
+    esac
+    num_src_snapshots=${#src_snapshots[@]}
+}
 
-################################################################################
+# Gather all the snapshots available at the destination.
+# dest_snapshosts: array containing the snapshots
+# num_dest_snapshots: the size of dest_snapshots
+function gather-receiver-snapshots {
+    # List all the snapshots at the backup location
+    case $receiver_version in
+        2|3)
+            mapfile -t dest_snapshots < <($receiver list-snapshots "$dest_root")
+            ;;
+        1)
+            mapfile -d' ' -t dest_snapshots < <($receiver list-snapshots "$dest_root"|tr -d '\n')
+            ;;
+        *)
+            error "Unknown version for receiver '$receiver_version'"
+            ;;
+    esac
+    num_dest_snapshots=${#dest_snapshots[@]}
+}
+
 # Compare source and destination location and sort the snapshots into:
 # common: exist at both locations
 # only_in_src: only exist at the source
 # only_in_dest: only exist at the destination
+function compare-snapshots {
 
-idx_src=0
-idx_dest=0
+    idx_src=0
+    idx_dest=0
 
-common=()
-only_in_src=()
-only_in_dest=()
+    common=()
+    only_in_src=()
+    only_in_dest=()
 
-# NOTE: the snapshots must be sorted in ascending order hence the
-# "sort -g" when getting the snapshots.
-while (( idx_src < num_src_snapshots && idx_dest < num_dest_snapshots ))
-do
-    if [ "${src_snapshots[idx_src]}" -eq "${dest_snapshots[idx_dest]}" ]
-    then
-        common+=("${src_snapshots[idx_src]}")
-        ((++idx_src))
-        ((++idx_dest))
-    elif [ "${src_snapshots[idx_src]}" -lt "${dest_snapshots[idx_dest]}" ]
-    then
-        only_in_src+=("${src_snapshots[idx_src]}")
-        ((++idx_src))
-    else
+    # NOTE: the snapshots must be sorted in ascending order hence the
+    # "sort -g" when getting the snapshots.
+    while (( idx_src < num_src_snapshots && idx_dest < num_dest_snapshots ))
+    do
+        if [ "${src_snapshots[idx_src]}" -eq "${dest_snapshots[idx_dest]}" ]
+        then
+            common+=("${src_snapshots[idx_src]}")
+            ((++idx_src))
+            ((++idx_dest))
+        elif [ "${src_snapshots[idx_src]}" -lt "${dest_snapshots[idx_dest]}" ]
+        then
+            only_in_src+=("${src_snapshots[idx_src]}")
+            ((++idx_src))
+        else
+            only_in_dest+=("${dest_snapshots[idx_dest]}")
+            ((++idx_dest))
+        fi
+    done
+
+    # Add the rest to respective array.
+    for (( ; idx_dest < num_dest_snapshots; ++idx_dest ))
+    do
         only_in_dest+=("${dest_snapshots[idx_dest]}")
-        ((++idx_dest))
-    fi
-done
+    done
 
-# Add the rest to respective array.
-for (( ; idx_dest < num_dest_snapshots; ++idx_dest ))
-do
-    only_in_dest+=("${dest_snapshots[idx_dest]}")
-done
+    for (( ; idx_src < num_src_snapshots; ++idx_src ))
+    do
+        only_in_src+=("${src_snapshots[idx_src]}")
+    done
+}
 
-for (( ; idx_src < num_src_snapshots; ++idx_src ))
-do
-    only_in_src+=("${src_snapshots[idx_src]}")
-done
-################################################################################
 # First argument is the snapshot to send.
 function single-backup {
     $receiver create-snapshot "$dest_root" "$1" ||
@@ -495,6 +509,7 @@ function single-backup {
         $receiver link-latest "$dest_root"
     fi
 }
+
 # First argument is the reference snapshot and the second is the
 # snapshot to backup. It will only send the difference between the
 # two.
@@ -522,6 +537,21 @@ function incremental-backup {
     fi
 }
 
+# Goes over the dest snapshots and delete any broken or incomplete.
+function cleanup-broken-snapshots {
+    for snapshot in "${dest_snapshots[@]}"
+    do
+        if $receiver incomplete-snapshot "$dest_root" "$snapshot"
+        then
+            $receiver remove-broken-snapshot  "$dest_root" "$snapshot"
+        fi
+    done
+    if [[ $p_link -eq 1 ]]
+    then
+        $receiver link-latest "$dest_root"
+    fi
+}
+
 # Main logic for the backup
 function backup {
     if [[ $num_src_snapshots == 0 ]]
@@ -541,6 +571,15 @@ function backup {
     then
         echo "Already backed up all snapshots"
         return 0
+    fi
+
+    if [[ $receiver_version -ge 3 ]]
+    then
+        echo "Clean up any broken or incomplete snapshots at destination"
+        cleanup-broken-snapshots
+        # snapshots at dest could have be removed, gather the snapshots again.
+        gather-receiver-snapshots
+        compare-snapshots
     fi
 
     # Destination doesn't have any snapshots, send the whole snapshot.
@@ -602,24 +641,18 @@ function backup {
     fi
 }
 
-# Main:
+## Main ########################################################################
+gather-sender-snapshots
+gather-receiver-snapshots
+compare-snapshots
+
 case $p_command in
     clean)
         if [[ $receiver_version -lt 3 ]]
         then
             error "Daemon is too old, got version $receiver_version, need at least version 3."
         fi
-        for snapshot in "${dest_snapshots[@]}"
-        do
-            if $receiver incomplete-snapshot "$dest_root" "$snapshot"
-            then
-                $receiver remove-broken-snapshot  "$dest_root" "$snapshot"
-            fi
-        done
-        if [[ $p_link -eq 1 ]]
-        then
-            $receiver link-latest "$dest_root"
-        fi
+        cleanup-broken-snapshots
         ;;
     delete)
         $receiver remove-snapshots "$dest_root" "${p_delete_list[@]}"
