@@ -2,6 +2,9 @@ SPDX-FileCopyrightText: 2023 Fredrik Salomonsson <plattfot@posteo.net>
 
 SPDX-License-Identifier: GPL-3.0-or-later
 
+2025-01-04 Fredrik Salomonsson <plattfot@posteo.net>
+	* 2.3.0 :
+	Cleanup broken snapshots.
 2023-04-02 Fredrik Salomonsson <plattfot@posteo.net>
 	* 2.2.3 :
 	Fix bad array subscript when there are no source snapshots.
