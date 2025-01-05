@@ -1,10 +1,10 @@
-# SPDX-FileCopyrightText: 2023 Fredrik Salomonsson <plattfot@posteo.net>
+# SPDX-FileCopyrightText: 2025 Fredrik Salomonsson <plattfot@posteo.net>
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 # Maintainer: Fredrik Salomonsson <plattfot@posteo.net>
 pkgname=baksnapper
-pkgver=2.2.3
+pkgver=2.3.0
 pkgrel=1
 epoch=
 pkgdesc="Backup script for snapper snapshots."
