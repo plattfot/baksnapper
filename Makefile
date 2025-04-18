@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2023 Fredrik Salomonsson <plattfot@posteo.net>
+# SPDX-FileCopyrightText: 2023-2025 Fredrik Salomonsson <plattfot@posteo.net>
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -36,8 +36,8 @@ bin: | $(PREFIX_BIN)
 
 systemd: etc | $(PREFIX_LIB)/systemd/system
 	@install --mode=644 systemd/baksnapper@.timer $|/
-	@sed "s|<BSCONF_ROOT>|$(BSCONF_ROOT)|" \
-	     systemd/baksnapper@.service.template \
+	@sed "s|@BSCONF_ROOT@|$(BSCONF_ROOT)|" \
+	     systemd/baksnapper@.service.in \
 	     > $|/baksnapper@.service
 	@chmod 644 $|/baksnapper@.service
 
