@@ -1,0 +1,141 @@
+#! /usr/bin/env bash
+
+# Mock of the btrfs binary for testing
+
+# SPDX-FileCopyrightText: 2025  Fredrik Salomonsson <plattfot@posteo.net>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+read -rd '' help <<EOF
+Usage: btrfs [COMMAND] [OPTION]...
+
+Mock variant of the btrfs binary for testing
+
+Commands:
+  send
+  receive
+  subvolume
+  property
+
+Send options:
+  -p PARENT
+
+Subvolume commands:
+  delete
+
+Property commands:
+  get
+
+Author:
+Fredrik "PlaTFooT" Salomonsson
+EOF
+
+# Use getopt to parse the command-line arguments
+if ! _args=$(getopt --name btrfs \
+                    --options "hp:" \
+                    --long "help" \
+                    -- "$@")
+then
+    echo "Try '$0 --help for more information.'" >&2
+    exit 1
+fi
+
+eval set -- "$_args"
+# Parse options
+while [[ $# -gt 0 ]]
+do
+    key=$1
+    case $key in
+        -p)
+            parent=$2
+            shift 2
+            ;;
+        -h|--help)
+            echo -e "$help"
+            exit 0
+            ;;
+        --)
+            shift
+            break
+            ;;
+    esac
+done
+
+function subvolume {
+    case "$1" in
+        delete)
+            rm -rf -- "$1"
+            ;;
+        *)
+            >&2 echo "unsupported subcommand to subvolume: $1"
+            exit 1
+            ;;
+    esac
+}
+
+function send {
+    echo "$parent":"$1"
+}
+
+function receive {
+    read -r data
+    snapshot_parent=${data%:*}
+    if [[ -n "$snapshot_parent" ]]
+    then
+        snapshot_parent=$(basename "$(dirname "$snapshot_parent")")
+    fi
+    snapshot=${data#*:}
+
+    mkdir -p "$1/snapshot"
+    {
+        echo "parent=$snapshot_parent"
+        echo "snapshot=$snapshot"
+        echo "ro=true"
+    } > "$1/snapshot/data"
+}
+
+function property {
+    case "$1" in
+        get)
+            prop=$3
+            while read -r line; do
+                case $line in
+                    ${prop}*=*)
+                        if [[ "$line" =~ .*=[[:blank:]]*(.*) ]]
+                        then
+                            value="${BASH_REMATCH[1]}"
+                        fi
+                        ;;
+                    *)
+                        ;;
+                esac
+            done < "$2/data"
+            echo "${prop}=${value-false}"
+            ;;
+        *)
+            >&2 echo "unsupported subcommand to property: $1"
+            exit 1
+            ;;
+    esac
+}
+case "$1" in
+    subvolume)
+        shift 1
+        subvolume "$@"
+        ;;
+    receive)
+        shift 1
+        receive "$@"
+        ;;
+    send)
+        shift 1
+        send "$@"
+        ;;
+    property)
+        shift 1
+        property "$@"
+        ;;
+    *)
+        >&2 echo "unsupported command: $1"
+        exit 1
+esac
