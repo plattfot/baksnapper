@@ -1,0 +1,88 @@
+#! /usr/bin/env bash
+
+# Mock of the snapper binary for testing
+
+# SPDX-FileCopyrightText: 2025  Fredrik Salomonsson <plattfot@posteo.net>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+read -rd '' help <<EOF
+Usage: snapper [COMMAND] [OPTION]...
+
+Mock variant of the snapper binary for testing
+
+Commands:
+  get-config
+
+Options:
+  --no-dbus
+  -c CONFIG
+
+Author:
+Fredrik "PlaTFooT" Salomonsson
+EOF
+
+# Use getopt to parse the command-line arguments
+if ! _args=$(getopt --name btrfs \
+                    --options "hc:" \
+                    --long "help" \
+                    --long "no-dbus" \
+                    -- "$@")
+then
+    echo "Try '$0 --help for more information.'" >&2
+    exit 1
+fi
+
+eval set -- "$_args"
+# Parse options
+while [[ $# -gt 0 ]]
+do
+    key=$1
+    case $key in
+        -c)
+            config=$2
+            shift 2
+            ;;
+        -h|--help)
+            echo -e "$help"
+            exit 0
+            ;;
+        --no-dbus)
+            shift 1
+            ;;
+        --)
+            shift
+            break
+            ;;
+    esac
+done
+
+if [[ -z "$BAKSNAPPER_TEST_RUNNER_SENDER_ROOT" ]]
+then
+    >&2 echo "snapper mock: BAKSNAPPER_TEST_RUNNER_SENDER_ROOT is not set"
+    exit 1
+fi
+
+cat <<EOF
+Key                    │ Value
+───────────────────────┼─────────
+ALLOW_GROUPS           │
+ALLOW_USERS            │
+BACKGROUND_COMPARISON  │ yes
+EMPTY_PRE_POST_CLEANUP │ yes
+EMPTY_PRE_POST_MIN_AGE │ 1800
+FSTYPE                 │ btrfs
+NUMBER_CLEANUP         │ yes
+NUMBER_LIMIT           │ 50
+NUMBER_LIMIT_IMPORTANT │ 10
+NUMBER_MIN_AGE         │ 1800
+SUBVOLUME              │ $BAKSNAPPER_TEST_RUNNER_SENDER_ROOT/$config
+SYNC_ACL               │ no
+TIMELINE_CLEANUP       │ yes
+TIMELINE_CREATE        │ yes
+TIMELINE_LIMIT_DAILY   │ 3
+TIMELINE_LIMIT_HOURLY  │ 0
+TIMELINE_LIMIT_MONTHLY │ 2
+TIMELINE_LIMIT_YEARLY  │ 0
+TIMELINE_MIN_AGE       │ 1800
+EOF
