@@ -9,7 +9,7 @@ project(
 
 install_cmd = find_program('install')
 
-custom_target(
+baksnapper = custom_target(
   command: [install_cmd, '@INPUT@', '@OUTPUT@'],
   input: 'baksnapper.sh',
   output: 'baksnapper',
@@ -67,4 +67,10 @@ install_data(
   rename: 'root.bsconf',
   install_dir: get_option('sysconfdir')/'baksnapper/example',
   install_tag: 'runtime',
+)
+
+test(
+  'help',
+  baksnapper,
+  args: ['--help'],
 )
