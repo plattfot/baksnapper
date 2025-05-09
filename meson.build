@@ -4,7 +4,7 @@
 
 project(
   'baksnapper',
-  version: '2.3.0'
+  version: run_command('./build-aux/version', check: true).stdout().strip()
 )
 
 install_cmd = find_program('install')
