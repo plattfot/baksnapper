@@ -25,6 +25,9 @@
 (define %git-commit
   (read-string (open-pipe "git show HEAD | head -1 | cut -d ' ' -f2" OPEN_READ)))
 
+(define %package-version
+  (string-trim-right (read-string (open-pipe "./build-aux/version" OPEN_READ))))
+
 (define (skip-git-and-meson-artifacts file stat)
   "Skip git and autotools artifacts when collecting the sources."
   (let ((name (substring file (+ 1 (string-prefix-length %source-dir file)))))
@@ -35,7 +38,7 @@
 (define-public baksnapper
   (package
     (name "baksnapper")
-    (version (git-version "2.3.0" "HEAD" %git-commit))
+    (version (git-version %package-version "HEAD" %git-commit))
     (source (local-file %source-dir
                         #:recursive? #t
                         #:select? skip-git-and-meson-artifacts))
