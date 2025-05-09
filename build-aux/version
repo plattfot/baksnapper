@@ -1,0 +1,72 @@
+#! /usr/bin/env bash
+
+# SPDX-FileCopyrightText: 2025  Fredrik Salomonsson <plattfot@posteo.net>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+major=2
+minor=3
+patch=0
+
+version=$major.$minor.$patch
+
+read -rd '' help <<EOF
+Usage: $0 [OPTIONS...]
+
+Print version information.  Default it will print the whole version.
+
+Options:
+
+-h, --help   Print this help and then exit.
+-s, --short  Print only the major minor version.
+-M, --major  Print only major version
+-m, --minor  Print only minor version
+-p, --patch  Print only patch version
+
+EOF
+
+if ! _args=$(getopt --name "version" \
+             --options "hmMps" \
+             --long help \
+             --long major \
+             --long minor \
+             --long patch \
+             --long mm \
+             -- "$@")
+then
+    error "Try '$0 --help for more information.'"
+fi
+
+# Parse options
+while [[ $# -gt 0 ]]
+do
+key=$1
+case $key in
+    -s|--short)
+        version=$major.$minor
+        shift
+        ;;
+    -M|--major)
+        version=$major
+        shift
+        ;;
+    -m|--minor)
+        version=$minor
+        shift
+        ;;
+    -p|--patch)
+        version=$patch
+        shift
+        ;;
+    -h|--help)
+        echo -e "$help"
+        exit 0
+        ;;
+    --)
+        shift
+        break
+        ;;
+esac
+done
+
+echo $version
