@@ -24,6 +24,76 @@
   (parent snapshot-parent)
   (state snapshot-state))
 
+(define (create-snapper-snapshot path snapshot)
+  "Create dummy snapper snapshot at PATH for SNAPSHOT.
+
+A snapper snapshot is a normal directory which consist of a info.xml
+file with metadata and a btrfs snapshot named `snapshot`.  This will
+mock the structure with the following:
+
+PATH
+├── info.xml
+└── snapshot
+    └── data
+
+Where the `info.xml` will just be an empty file.  The file `data` will
+contain; snapshot=ID, where ID is the id from SNAPSHOT; parent=PARENT,
+where PARAENT is the parent from SNAPSHOT.  If parent is #f it will
+skip it.
+
+The state in SNAPSHOT specify what state it should create the
+snapshot, accepted values are:
+
+- valid: a complete snapshot as described above.  With `ro=true` added
+to the `data` file.
+
+- empty: a broken snapshot that is just an empty directory.  No
+`info.xml` file or `snapshot` directory.
+
+- no-info: a broken snapshot which is missing the info.xml file, will
+have the `snapshot` directory with the `data` file containing
+`ro=true`.
+
+- no-snapshot: A broken snapshot which is missing the `snapshot`
+directory.  Will have the empty `info.xml`.
+
+- incomplete: a broken snapshot which snapshot directory is
+incomplete.  It will have both `info.xml` and `snapshot`.  But the
+`ro=true` attribute will be missing in the `data` file."
+  (let* ((snapshot-dir (string-append path file-name-separator-string "snapshot"))
+         (create-info.xml (lambda ()
+                           (close-port
+                            (open-output-file
+                             (string-append path "/info.xml")))))
+         (create-snapshot (lambda* (#:key valid?)
+                            (mkdir snapshot-dir)
+                            (let ((port (open-output-file
+                                         (string-append snapshot-dir
+                                                        file-name-separator-string "data"))))
+                              (and-let* ((parent (snapshot-parent snapshot)))
+                                (format port "parent=~a~%" parent))
+                              (format port "snapshot=~a~%" (snapshot-id snapshot))
+                              (when valid?
+                                (format port "ro=true~%"))
+                              (close-port port)))))
+    (match (snapshot-state snapshot)
+      ('valid
+       (mkdir path)
+       (create-info.xml)
+       (create-snapshot #:valid? #t))
+      ('empty
+       (mkdir path))
+      ('no-info
+       (mkdir path)
+       (create-snapshot #:valid? #t))
+      ('no-snapshot
+       (mkdir path)
+       (create-info.xml))
+      ('incomplete
+       (mkdir path)
+       (create-info.xml)
+       (create-snapshot #:valid? #f)))))
+
 (define (main args)
   (let* ((option-spec
           `((config (single-char #\c) (value #t))
