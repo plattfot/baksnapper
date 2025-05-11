@@ -17,6 +17,13 @@
   "Join PATHS into one path using `file-name-separator-string`."
   (string-join paths file-name-separator-string))
 
+(define-record-type <snapshot>
+  (make-snapshot id parent state)
+  snapshot?
+  (id snapshot-id)
+  (parent snapshot-parent)
+  (state snapshot-state))
+
 (define (main args)
   (let* ((option-spec
           `((config (single-char #\c) (value #t))
