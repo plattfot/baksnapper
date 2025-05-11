@@ -19,7 +19,7 @@ custom_target(
   install_tag: 'runtime',
 )
 
-custom_target(
+baksnapperd = custom_target(
   command: [install_cmd, '@INPUT@', '@OUTPUT@'],
   input: 'baksnapperd.sh',
   output: 'baksnapperd',
