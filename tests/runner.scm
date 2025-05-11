@@ -24,6 +24,30 @@
   (parent snapshot-parent)
   (state snapshot-state))
 
+(define (make-snapshot-from input)
+  "Parse INPUT and create a snapshot from it."
+  (let* ((info (string-split input #\:))
+         (id (car info))
+         (metadata
+          (map
+           (lambda (metadatum)
+             (match (string-split metadatum #\=)
+              (("p" parent) (cons 'parent parent))
+              (("s" state)
+               (let ((state-sym (string->symbol state)))
+                 (match state-sym
+                    ((or 'valid 'empty 'no-info 'no-snapshot 'incomplete)
+                     (cons 'state state-sym)))))))
+           (cdr info))))
+    (make-snapshot
+     id
+     (match (assoc 'parent metadata)
+       (('parent . p) p)
+       (_ #f))
+     (match (assoc 'state metadata)
+       (('state . s) s)
+       (_ 'valid)))))
+
 (define (create-snapper-snapshot path snapshot)
   "Create dummy snapper snapshot at PATH for SNAPSHOT.
 
