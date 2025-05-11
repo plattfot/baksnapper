@@ -94,12 +94,35 @@ incomplete.  It will have both `info.xml` and `snapshot`.  But the
        (create-info.xml)
        (create-snapshot #:valid? #f)))))
 
+(define (check-snapshot-input value)
+  "Verify the input for receiver or expected."
+  (fold
+   (lambda (snapshot prev-snapshot)
+     (fold
+      (lambda (metadata prev-metadata)
+        (and (match (string-split metadata #\=)
+               (("p" parent) #t)
+               (("s" state)
+                (match (string->symbol state)
+                  ((or 'valid 'empty 'no-info 'no-snapshot 'incomplete) #t)
+                  (_
+                   (format (current-error-port) "unsupported state: ~a~%" state)
+                   #f)))
+               (_
+                (format (current-error-port) "invalid snapshot syntax: ~a~%" metadata)
+                #f))
+             prev-metadata))
+      prev-snapshot
+      (cdr (string-split snapshot #\:))))
+   #t
+   (string-split value #\,)))
+
 (define (main args)
   (let* ((option-spec
           `((config (single-char #\c) (value #t))
             (sender (single-char #\s) (value #t))
-            (receiver (single-char #\r) (value #t))
-            (expected (single-char #\e) (value #t))
+            (receiver (single-char #\r) (value #t) (predicate ,check-snapshot-input))
+            (expected (single-char #\e) (value #t) (predicate ,check-snapshot-input))
             (type (single-char #\t) (value #t))
             (help (single-char #\h) (value #f))))
          (options (getopt-long args option-spec))
