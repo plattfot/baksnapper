@@ -7,6 +7,7 @@
 ; SPDX-License-Identifier: GPL-3.0-or-later
 
 (use-modules (ice-9 format)
+             (ice-9 ftw)
              (ice-9 getopt-long)
              (ice-9 match)
              (srfi srfi-1)
@@ -209,17 +210,61 @@ Fredrik \"PlaTFooT\" Salomonsson
            (sender-dir (path-join test-dir config ".snapshots"))
            (receiver-root-dir (path-join test-dir "receiver"))
            (receiver-dir (path-join receiver-root-dir config)))
+      ;; Needed for nftw to be able to read the directory
+      (chmod test-dir #o744)
       (format #t "Test ~a~%" test-dir)
       (format #t "  sender:   ~a~%" sender)
       (format #t "  receiver: ~a~%" receiver)
       (format #t "  expected: ~a~%" expected)
-      (format #t "  verify: ~a~%" (check-snapshot-input "10:s=valid:p=9"))
-      ;; (mkdir sender-dir)
-      ;; (for-each
-      ;;  (lambda (snapshot)
-      ;;    (create-snapper-snapshot (string-append sender-dir "/" snapshot) 'valid))
-      ;;  sender)
-      ;; TODO: parse state for receiver and expected snapshots
-      ;; (rmdir test-dir)
-      )))
+      (let ((sender-snapshots
+             (map (lambda (id)
+                    (make-snapshot id #f 'valid))
+                  sender))
+            (receiver-snapshots
+             (map (lambda (input)
+                    (make-snapshot-from input))
+                  receiver))
+            (expected-snapshots
+             (map (lambda (input)
+                    (make-snapshot-from input))
+                  expected)))
+        ;; Setup
+        ;; FIXME: write a proper mkdir -p
+        (mkdir (path-join test-dir config))
+        (mkdir sender-dir)
+        (for-each
+         (lambda (snapshot)
+           (create-snapper-snapshot
+            (path-join sender-dir (snapshot-id snapshot))
+            snapshot))
+         sender-snapshots)
+        ;; FIXME: write a proper mkdir -p
+        (mkdir (path-join test-dir "receiver"))
+        (mkdir receiver-dir)
+        (for-each
+         (lambda (snapshot)
+           (create-snapper-snapshot
+            (path-join receiver-dir (snapshot-id snapshot))
+            snapshot))
+         receiver-snapshots)
+        ;; Run command
+
+        (format #t "running command: ~a~%" command)
+
+        ;; Check
+        ;; maybe use file tree walk?
+
+        ;; Clean up
+        (nftw test-dir
+              (lambda (filename statinfo flag base level)
+                (match flag
+                  ('directory-processed (rmdir filename))
+                  ((or 'regular symlink) (delete-file filename))
+                  (_ (format
+                      (current-error-port)
+                      "cannot clean up file: ~a of type ~a~%"
+                      filename
+                      statinfo)))
+                #t)
+              'depth)))))
 
