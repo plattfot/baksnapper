@@ -10,6 +10,7 @@
              (ice-9 ftw)
              (ice-9 getopt-long)
              (ice-9 match)
+             (ice-9 textual-ports)
              (srfi srfi-1)
              (srfi srfi-2)
              (srfi srfi-9))
@@ -142,6 +143,62 @@ incomplete.  It will have both `info.xml` and `snapshot`.  But the
    #t
    (string-split value #\,)))
 
+(define read-snapshots
+  (match-lambda
+    ((parent "info.xml" stat)
+     (cons 'has-info #t))
+    ((parent "data" stat)
+     (call-with-input-file (path-join parent "data")
+       (lambda (port)
+         (let parse-line ((line (get-line port)))
+           (if (not (eof-object? line))
+               (let ((key-value (string-split line #\=)))
+                 (cons (cons (car key-value)
+                             (match (cadr key-value)
+                               ("" #f)
+                               (value value)))
+                       (parse-line (get-line port))))
+               '())))))
+    ((parent name stat children ...)
+     (cons name
+           (map
+            (lambda (child)
+              (read-snapshots (cons (path-join parent name) child)))
+            children)))))
+
+(define (make-snapshot-from-read data)
+  "Create a snapshot from DATA.
+
+Where DATA is in the format of what you get calling `read-snatshots'."
+  (let* ((id (car data))
+         (get (lambda (key alist default)
+                (match (assoc key alist)
+                  ((key . v) v)
+                  (_ default))))
+         (metadata (cdr data))
+         (has-info (get 'has-info metadata #f))
+         (snapshot-info (match (assoc "snapshot" metadata)
+                          (("snapshot" . (v)) v)
+                          (_ '())))
+         (read-only (match (assoc "ro" snapshot-info)
+                      (("ro" . "true") #t)
+                      (_ #f)))
+         (parent (get "parent" snapshot-info #f)))
+    (make-snapshot
+     id
+     parent
+     (match (list has-info snapshot-info read-only)
+       ((#t (_ ...) #t)
+        'valid)
+       ((#f () _)
+        'empty)
+       ((#f (_ ...) #t)
+        'no-info)
+       ((#t () _)
+        'no-snapshot)
+       (_
+        'incomplete)))))
+
 (define (main args)
   (let* ((option-spec
           `((config (single-char #\c) (value #t))
@@ -226,7 +283,8 @@ Fredrik \"PlaTFooT\" Salomonsson
                   receiver))
             (expected-snapshots
              (map (lambda (input)
-                    (make-snapshot-from input))
+                    (let ((snapshot (make-snapshot-from input)))
+                      (cons (snapshot-id snapshot) snapshot)))
                   expected)))
         ;; Setup
         ;; FIXME: write a proper mkdir -p
@@ -252,7 +310,11 @@ Fredrik \"PlaTFooT\" Salomonsson
         (format #t "running command: ~a~%" command)
 
         ;; Check
-        ;; maybe use file tree walk?
+        (format #t "Receiver: ~a~%"
+                (map make-snapshot-from-read
+                     (cdr (read-snapshots
+                           (cons (dirname receiver-dir)
+                                 (file-system-tree receiver-dir))))))
 
         ;; Clean up
         (nftw test-dir
