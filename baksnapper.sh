@@ -95,6 +95,8 @@ EOF
 
 function error {
     echo "[ERROR] $1" 1>&2
+    exec 4>&-
+    rm -rf "${p_temp_dir}"
     exit 1
 }
 
@@ -298,6 +300,12 @@ then
     set -x
 fi
 
+# temporary file to store the summary report
+p_temp_dir=$(mktemp -d "${TEMP:-/tmp/}$(basename "$0").XXXXX")
+p_summary="${p_temp_dir}/summary.txt"
+printf "dest_root\tsrc\tdest\tbytes\tstart\tend\tduration\n" >"${p_summary}"
+
+
 p_baksnapperd=${p_baksnapperd=baksnapperd}
 p_all=${p_all=0}
 
@@ -490,6 +498,11 @@ function compare-snapshots {
 
 # First argument is the snapshot to send.
 function single-backup {
+    local starttime
+    local endtime
+    local duration
+    starttime=$(date +%s)
+
     $receiver create-snapshot "$dest_root" "$1" ||
         error "Failed to create snapshot at backup location!"
 
@@ -499,21 +512,33 @@ function single-backup {
         error "Failed to send snapshot info!"
     fi
 
-    if ! $sender send-snapshot "$src_root" "$1" | $receiver receive-snapshot "$dest_root" "$1"
+    printf "%s\t\t%s\t" "${dest_root}" "${1}" >>"${p_summary}"
+    exec 4>"${p_temp_dir}/${1}"
+    if ! $sender send-snapshot "$src_root" "$1" | tee >( wc -c >&4 ) | $receiver receive-snapshot "$dest_root" "$1"
     then
         $receiver remove-broken-snapshot "$dest_root" "$1"
         error "Failed to send snapshot!"
     fi
+    exec 4>&-
     if [[ $p_link -eq 1 ]]
     then
         $receiver link-latest "$dest_root"
     fi
-}
 
+    endtime=$(date +%s)
+    duration=$(( endtime - starttime ))
+    tr -d '\n' < "${p_temp_dir}/${1}" >>"${p_summary}"
+    printf "\t%s\t%s\t%s\n" "${starttime}" "${endtime}" "${duration}" >>"${p_summary}"
+}
 # First argument is the reference snapshot and the second is the
 # snapshot to backup. It will only send the difference between the
 # two.
 function incremental-backup {
+    local starttime
+    local endtime
+    local duration
+    starttime=$(date +%s)
+
     echo "Incremental backup"
 
     $receiver create-snapshot "$dest_root" "$2" ||
@@ -525,16 +550,24 @@ function incremental-backup {
         error "Failed to send snapshot info!"
     fi
 
-    if ! $sender send-incremental-snapshot "$src_root/"{"$1","$2"} \
-            | $receiver receive-snapshot "$dest_root" "$2"
+    printf "%s\t%s\t%s\t" "${dest_root}" "${1}" "${2}" >>"${p_summary}"
+    exec 4>"${p_temp_dir}/${2}"
+    if ! $sender send-incremental-snapshot "$subvolume/.snapshots/"{"$1","$2"} \
+            | tee >( wc -c >&4 ) | $receiver receive-snapshot "$dest_root" "$2"
     then
         $receiver remove-broken-snapshot "$dest_root" "$1"
         error "Failed to send snapshot!"
     fi
+    exec 4>&-
     if [[ $p_link -eq 1 ]]
     then
         $receiver link-latest "$dest_root"
     fi
+
+    endtime=$(date +%s)
+    duration=$(( endtime - starttime ))
+    tr -d '\n' < "${p_temp_dir}/${2}" >>"${p_summary}"
+    printf "\t%s\t%s\t%s\n" "${starttime}" "${endtime}" "${duration}" >>"${p_summary}"
 }
 
 # Goes over the dest snapshots and delete any broken or incomplete.
@@ -696,3 +729,6 @@ then
         $receiver link-latest "$dest_root"
     fi
 fi
+
+cat "${p_summary}"
+rm -rf "${p_temp_dir}"
