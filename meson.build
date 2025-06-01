@@ -74,3 +74,25 @@ test(
   baksnapper,
   args: ['--help'],
 )
+
+test_env = environment()
+test_env.prepend('PATH', meson.current_source_dir() / 'tests/bin')
+runner = find_program('./tests/runner.scm')
+
+test(
+  'default',
+  runner,
+  env: test_env,
+  args: [
+    '--sender', '1,2,3',
+    '--expected', '3',
+    '--',
+    baksnapper[0].full_path(),
+    '--config', 'root',
+    '--daemon', baksnapperd[0].full_path(),
+  ],
+  depends: [
+    baksnapper,
+    baksnapperd,
+  ],
+)
