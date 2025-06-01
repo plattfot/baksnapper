@@ -273,7 +273,8 @@ Fredrik \"PlaTFooT\" Salomonsson
       (format #t "  sender:   ~a~%" sender)
       (format #t "  receiver: ~a~%" receiver)
       (format #t "  expected: ~a~%" expected)
-      (let ((sender-snapshots
+      (let ((exit-status 0)
+            (sender-snapshots
              (map (lambda (id)
                     (make-snapshot id #f 'valid))
                   sender))
@@ -328,5 +329,6 @@ Fredrik \"PlaTFooT\" Salomonsson
                       filename
                       statinfo)))
                 #t)
-              'depth)))))
+              'depth)
+        (exit exit-status)))))
 
