@@ -11,6 +11,7 @@
              (ice-9 getopt-long)
              (ice-9 hash-table)
              (ice-9 match)
+             (ice-9 popen)
              (ice-9 textual-ports)
              (srfi srfi-1)
              (srfi srfi-2)
@@ -308,9 +309,14 @@ Fredrik \"PlaTFooT\" Salomonsson
             (path-join receiver-dir (snapshot-id snapshot))
             snapshot))
          receiver-snapshots)
-        ;; Run command
 
-        (format #t "running command: ~a~%" command)
+        ;; Run command
+        (let ((command-with-path (append command (list receiver-root-dir))))
+          (format #t "Running command: ~a…~%" command-with-path)
+          (setenv "BAKSNAPPER_TEST_RUNNER_SENDER_ROOT" test-dir)
+          (let ((pipe (apply open-pipe* OPEN_READ command-with-path)))
+            (format #t "~a~%" (get-string-all pipe))
+            (set! exit-status (status:exit-val (close-pipe pipe)))))
 
         ;; Check
         (let* ((result-snapshots
