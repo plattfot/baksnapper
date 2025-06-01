@@ -321,7 +321,7 @@ Fredrik \"PlaTFooT\" Salomonsson
                       (cdr (read-snapshots
                             (cons (dirname receiver-dir)
                                   (file-system-tree receiver-dir)))))))
-               (result-mismatch
+               (mismatch-result
                 (hash-fold
                  (lambda (id snapshot mismatch)
                    (match (hash-get-handle expected-snapshots id)
@@ -332,17 +332,43 @@ Fredrik \"PlaTFooT\" Salomonsson
                           (cons (cons snapshot expected-snapshot) mismatch)))))
                  '()
                  result-snapshots))
-               (expected-missing
+               (missing-expected
                 (hash-fold
                  (lambda (id snapshot mismatch)
                    (if (hash-get-handle result-snapshots id)
                        mismatch
-                       (cons (cons snapshot #f) mismatch)))
+                       (cons snapshot mismatch)))
                  '()
                  expected-snapshots)))
-          (format #t "mismatch: ~a~%" result-mismatch)
-          (format #t "missing: ~a~%" expected-missing)
-          )
+          (for-each
+           (match-lambda
+             ((($ <snapshot> result-id result-parent result-state) . #f)
+              (format (current-error-port)
+                      "[FAIL] Snapshot ~a exists → p:~a s:~a~%"
+                      result-id result-parent result-state))
+             ((($ <snapshot> result-id result-parent result-state) .
+               ($ <snapshot> expected-id expected-parent expected-state))
+              (format (current-error-port)
+                      "[FAIL] Snapshot `~a` differs~%" result-id)
+              (when (not (equal? result-parent expected-parent))
+                (format (current-error-port)
+                        "  → parent is `~a` expected `~a`~%"
+                        result-parent expected-parent))
+              (when (not (equal? result-state expected-state))
+                (format (current-error-port)
+                        "  → state is `~a` expected `~a`~%"
+                        result-state expected-state))))
+           mismatch-result)
+          (for-each
+           (match-lambda
+             (($ <snapshot> expected-id expected-parent expected-state)
+              (format (current-error-port)
+                       "[FAIL] Expected snapshot `~a` to exists with parent `~a` and state `~a`~%"
+                       expected-id expected-parent expected-state)))
+           missing-expected)
+          (when (or (not (null-list? mismatch-result))
+                    (not (null-list? missing-expected)))
+            (set! exit-status 1)))
 
         ;; Clean up
         (nftw test-dir
