@@ -9,6 +9,7 @@
 (use-modules (ice-9 format)
              (ice-9 ftw)
              (ice-9 getopt-long)
+             (ice-9 hash-table)
              (ice-9 match)
              (ice-9 textual-ports)
              (srfi srfi-1)
@@ -283,10 +284,11 @@ Fredrik \"PlaTFooT\" Salomonsson
                     (make-snapshot-from input))
                   receiver))
             (expected-snapshots
-             (map (lambda (input)
-                    (let ((snapshot (make-snapshot-from input)))
-                      (cons (snapshot-id snapshot) snapshot)))
-                  expected)))
+             (alist->hash-table
+              (map (lambda (input)
+                     (let ((snapshot (make-snapshot-from input)))
+                       (cons (snapshot-id snapshot) snapshot)))
+                   expected))))
         ;; Setup
         ;; FIXME: write a proper mkdir -p
         (mkdir (path-join test-dir config))
@@ -311,11 +313,36 @@ Fredrik \"PlaTFooT\" Salomonsson
         (format #t "running command: ~a~%" command)
 
         ;; Check
-        (format #t "Receiver: ~a~%"
-                (map make-snapshot-from-read
-                     (cdr (read-snapshots
-                           (cons (dirname receiver-dir)
-                                 (file-system-tree receiver-dir))))))
+        (let* ((result-snapshots
+                (alist->hash-table
+                 (map (lambda (data)
+                        (let ((snapshot (make-snapshot-from-read data)))
+                          (cons (snapshot-id snapshot) snapshot)))
+                      (cdr (read-snapshots
+                            (cons (dirname receiver-dir)
+                                  (file-system-tree receiver-dir)))))))
+               (result-mismatch
+                (hash-fold
+                 (lambda (id snapshot mismatch)
+                   (match (hash-get-handle expected-snapshots id)
+                     (#f (cons (cons snapshot #f) mismatch))
+                     ((id . expected-snapshot)
+                      (if (equal? snapshot expected-snapshot)
+                          mismatch
+                          (cons (cons snapshot expected-snapshot) mismatch)))))
+                 '()
+                 result-snapshots))
+               (expected-missing
+                (hash-fold
+                 (lambda (id snapshot mismatch)
+                   (if (hash-get-handle result-snapshots id)
+                       mismatch
+                       (cons (cons snapshot #f) mismatch)))
+                 '()
+                 expected-snapshots)))
+          (format #t "mismatch: ~a~%" result-mismatch)
+          (format #t "missing: ~a~%" expected-missing)
+          )
 
         ;; Clean up
         (nftw test-dir
