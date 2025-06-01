@@ -2,6 +2,10 @@ SPDX-FileCopyrightText: 2023 Fredrik Salomonsson <plattfot@posteo.net>
 
 SPDX-License-Identifier: GPL-3.0-or-later
 
+2025-06-01 Juergen Gleiss
+	Add summary report (#31), which prints destination, snapper ids,
+	bytes of data transfer, start time, end time and duration
+
 2025-01-04 Fredrik Salomonsson <plattfot@posteo.net>
 	* 2.3.0 :
 	Cleanup broken snapshots.
