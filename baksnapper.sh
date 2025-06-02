@@ -5,6 +5,7 @@
 
 # SPDX-FileCopyrightText: 2015-2024  Fredrik Salomonsson <plattfot@posteo.net>
 # SPDX-FileCopyrightText: 2021       Nathan Dehnel
+# SPDX-FileCopyrightText: 2025       Juergen Gleiss
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -93,6 +94,17 @@ This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.
 EOF
 
+function cleanup {
+    exec 4>&-
+    rm -rf "${p_temp_dir}"
+}
+
+function exit-msg {
+    cleanup
+    notify-send -u critical "Done backing up $p_config. Safe to turn off computer."
+}
+
+
 function error {
     echo "[ERROR] $1" 1>&2
     exit 1
@@ -101,6 +113,7 @@ function error {
 function warning {
     echo -e "[Warning] $1" 1>&2
 }
+
 
 function parse-full-path {
     if [[ $1 =~ \(.*?\):\(.*\) ]]
@@ -298,6 +311,7 @@ then
     set -x
 fi
 
+
 p_baksnapperd=${p_baksnapperd=baksnapperd}
 p_all=${p_all=0}
 
@@ -306,17 +320,6 @@ p_all=${p_all=0}
 [[ -z $p_config ]] && error "You need to specify the config name to backup!"
 [[ -z $p_dest ]] && error "No path specified!"
 
-function exit-msg {
-    # shellcheck disable=SC2317
-    notify-send -u critical "Done backing up $p_config. Safe to turn off computer."
-}
-
-# Only run notify-send if installed
-if hash notify-send 2> /dev/null
-then
-    notify-send -u critical "Backing up $p_config. Do not turn off computer!"
-    trap exit-msg EXIT
-fi
 
 regex='(.*?):(.*)'
 if [[ $p_dest =~ $regex ]]
@@ -328,20 +331,21 @@ else
     dest=$p_dest
 fi
 
+## Setup signals ###############################################################
+# EXIT   --> if notify-send is installed, inform the user; always cleanup
 if hash notify-send 2> /dev/null
-then
-    has_notify=1
-fi
-
-function exit-msg {
-    notify-send -u critical "Done backing up $p_config. Safe to turn off computer."
-}
-
-if [[ $has_notify == 1 ]]
 then
     notify-send -u critical "Backing up $p_config. Do not turn off computer!"
     trap exit-msg EXIT
+else
+    trap cleanup EXIT
 fi
+
+# temporary file to store the summary report
+p_temp_dir=$(mktemp -d "${TEMP:-/tmp/}$(basename "$0").XXXXX")
+p_summary="${p_temp_dir}/summary.txt"
+printf "dest_root\tsrc\tdest\tbytes\tstart\tend\tduration\n" >"${p_summary}"
+
 
 if [[ -n "$ssh" ]]
 then
@@ -405,6 +409,23 @@ dest_root="$dest/$p_config"
 $receiver create-config "$dest_root" || error "Problem creating config at backup location"
 
 ## Function definitions ########################################################
+
+# - First argument  ... start-time to calculate the duration
+# - Second argument ... snapper id
+# Function ist used by single-backup and incremental-backup
+function print-statistics {
+    local start_time
+    local end_time
+    local duration
+
+    start_time="${1}"
+    end_time=$(date +%s)
+    duration=$(( end_time - start_time ))
+
+    tr -d '\n' < "${p_temp_dir}/${2}" >>"${p_summary}"
+    printf "\t%s\t%s\t%s\n" "${start_time}" "${end_time}" "${duration}" >>"${p_summary}"
+}
+
 
 # Gather all the snapshots available at the source.
 # src_snapshosts: array containing the snapshots
@@ -490,6 +511,9 @@ function compare-snapshots {
 
 # First argument is the snapshot to send.
 function single-backup {
+    local start_time
+    start_time=$(date +%s)
+
     $receiver create-snapshot "$dest_root" "$1" ||
         error "Failed to create snapshot at backup location!"
 
@@ -499,21 +523,31 @@ function single-backup {
         error "Failed to send snapshot info!"
     fi
 
-    if ! $sender send-snapshot "$src_root" "$1" | $receiver receive-snapshot "$dest_root" "$1"
+    printf "%s\t\t%s\t" "${dest_root}" "${1}" >>"${p_summary}"
+    exec 4>"${p_temp_dir}/${1}"
+    if ! $sender send-snapshot "$src_root" "$1" | tee >( wc -c >&4 ) | $receiver receive-snapshot "$dest_root" "$1"
     then
         $receiver remove-broken-snapshot "$dest_root" "$1"
         error "Failed to send snapshot!"
     fi
+    exec 4>&-
     if [[ $p_link -eq 1 ]]
     then
         $receiver link-latest "$dest_root"
     fi
+
+    print-statistics "${start_time}" "${1}"
 }
 
 # First argument is the reference snapshot and the second is the
 # snapshot to backup. It will only send the difference between the
 # two.
 function incremental-backup {
+    local start_time
+    local end_time
+    local duration
+    start_time=$(date +%s)
+
     echo "Incremental backup"
 
     $receiver create-snapshot "$dest_root" "$2" ||
@@ -525,16 +559,21 @@ function incremental-backup {
         error "Failed to send snapshot info!"
     fi
 
-    if ! $sender send-incremental-snapshot "$src_root/"{"$1","$2"} \
-            | $receiver receive-snapshot "$dest_root" "$2"
+    printf "%s\t%s\t%s\t" "${dest_root}" "${1}" "${2}" >>"${p_summary}"
+    exec 4>"${p_temp_dir}/${2}"
+    if ! $sender send-incremental-snapshot "$subvolume/.snapshots/"{"$1","$2"} \
+            | tee >( wc -c >&4 ) | $receiver receive-snapshot "$dest_root" "$2"
     then
         $receiver remove-broken-snapshot "$dest_root" "$1"
         error "Failed to send snapshot!"
     fi
+    exec 4>&-
     if [[ $p_link -eq 1 ]]
     then
         $receiver link-latest "$dest_root"
     fi
+
+    print-statistics "${start_time}" "${2}"
 }
 
 # Goes over the dest snapshots and delete any broken or incomplete.
@@ -696,3 +735,5 @@ then
         $receiver link-latest "$dest_root"
     fi
 fi
+
+cat "${p_summary}"
