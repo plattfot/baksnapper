@@ -116,6 +116,25 @@ test(
   ],
 )
 
+test(
+  'prune',
+  runner,
+  env: test_env,
+  args: [
+    '--sender', '1,2,3,6,7,8',
+    '--receiver', '1,2,3,4,5,6',
+    '--expected', '1,2,3,6,8:p=6',
+    '--',
+    baksnapper[0].full_path(),
+    '--config', 'root',
+    '--daemon', baksnapperd[0].full_path(),
+    '--prune',
+  ],
+  depends: [
+    baksnapper,
+    baksnapperd,
+  ],
+)
 
 test(
   'delete-1',
