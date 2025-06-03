@@ -736,4 +736,3 @@ fi
 echo "--- Statistics ---"
 cat "${p_summary}"
 echo "--- Statistics ---"
-rm -rf "${p_temp_dir}"
