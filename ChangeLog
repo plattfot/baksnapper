@@ -2,6 +2,8 @@ SPDX-FileCopyrightText: 2023 Fredrik Salomonsson <plattfot@posteo.net>
 
 SPDX-License-Identifier: GPL-3.0-or-later
 
+2025-06-02 Fredrik Salomonsson <plattfot@posteo.net>
+	Fix that it properly split the list in --delete.
 2025-06-01 Juergen Gleiss
 	Add summary report (#31), which prints destination, snapper ids,
 	bytes of data transfer, start time, end time and duration
