@@ -695,10 +695,6 @@ case $p_command in
         ;;
     delete)
         $receiver remove-snapshots "$dest_root" "${p_delete_list[@]}"
-        if [[ $p_link -eq 1 ]]
-        then
-            $receiver link-latest "$dest_root"
-        fi
         ;;
     delete-all)
         echo -n "Are you sure you want to delete all backup snapshots from $dest_root? (y/N): "
@@ -730,10 +726,14 @@ esac
 if [[ ${p_prune-0} == 1 ]]
 then
     $receiver remove-snapshots "$dest_root" "${only_in_dest[@]}"
-    if [[ $p_link -eq 1 ]]
-    then
-        $receiver link-latest "$dest_root"
-    fi
 fi
 
+if [[ $p_link -eq 1 ]]
+then
+    $receiver link-latest "$dest_root"
+fi
+
+echo "--- Statistics ---"
 cat "${p_summary}"
+echo "--- Statistics ---"
+rm -rf "${p_temp_dir}"
