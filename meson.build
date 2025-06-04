@@ -98,6 +98,27 @@ test(
 )
 
 test(
+  'latest',
+  runner,
+  env: test_env,
+  args: [
+    '--sender', '1,2,3',
+    '--expected', '3',
+    '--expected-latest', '3',
+    '--',
+    baksnapper[0].full_path(),
+    '--config', 'root',
+    '--daemon', baksnapperd[0].full_path(),
+    '--link',
+  ],
+  depends: [
+    baksnapper,
+    baksnapperd,
+  ],
+)
+
+
+test(
   'backup-2',
   runner,
   env: test_env,
