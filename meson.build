@@ -115,6 +115,8 @@ test(
     baksnapper,
     baksnapperd,
   ],
+  # FIXME: remove once https://github.com/plattfot/baksnapper/pull/35 is merged
+  should_fail: true,
 )
 
 
