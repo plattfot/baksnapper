@@ -4,12 +4,12 @@
 
 project(
   'baksnapper',
-  version: '2.3.0'
+  version: run_command('./build-aux/version', check: true).stdout().strip()
 )
 
 install_cmd = find_program('install')
 
-custom_target(
+baksnapper = custom_target(
   command: [install_cmd, '@INPUT@', '@OUTPUT@'],
   input: 'baksnapper.sh',
   output: 'baksnapper',
@@ -19,7 +19,7 @@ custom_target(
   install_tag: 'runtime',
 )
 
-custom_target(
+baksnapperd = custom_target(
   command: [install_cmd, '@INPUT@', '@OUTPUT@'],
   input: 'baksnapperd.sh',
   output: 'baksnapperd',
@@ -67,4 +67,32 @@ install_data(
   rename: 'root.bsconf',
   install_dir: get_option('sysconfdir')/'baksnapper/example',
   install_tag: 'runtime',
+)
+
+test(
+  'help',
+  baksnapper,
+  args: ['--help'],
+)
+
+test_env = environment()
+test_env.prepend('PATH', meson.current_source_dir() / 'tests/bin')
+runner = find_program('./tests/runner.scm')
+
+test(
+  'default',
+  runner,
+  env: test_env,
+  args: [
+    '--sender', '1,2,3',
+    '--expected', '3',
+    '--',
+    baksnapper[0].full_path(),
+    '--config', 'root',
+    '--daemon', baksnapperd[0].full_path(),
+  ],
+  depends: [
+    baksnapper,
+    baksnapperd,
+  ],
 )

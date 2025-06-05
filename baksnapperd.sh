@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /usr/bin/env bash
 
 # Baksnapperd - Daemon used by baksnapper when backup via ssh
 
