@@ -196,3 +196,43 @@ test(
     baksnapperd,
   ],
 )
+
+# https://github.com/plattfot/baksnapper/issues/27
+test(
+  'backup-all-with-right-parent',
+  runner,
+  env: test_env,
+  args: [
+    '--sender', '64,65,76,83,91,92,93',
+    '--receiver', '64,66:p=64,76:p=66,83:p=76,91:p=83,92:p=83',
+    '--expected', '64,65:p=64,66:p=64,76:p=66,83:p=76,91:p=83,92:p=83,93:p=92',
+    '--',
+    baksnapper[0].full_path(),
+    '--config', 'root',
+    '--daemon', baksnapperd[0].full_path(),
+    '--all',
+  ],
+  depends: [
+    baksnapper,
+    baksnapperd,
+  ],
+)
+
+test(
+  'backup-with-right-parent',
+  runner,
+  env: test_env,
+  args: [
+    '--sender', '64,65,76,83,91,92,93',
+    '--receiver', '64,66:p=64,76:p=66,83:p=76,91:p=83,92:p=83',
+    '--expected', '64,66:p=64,76:p=66,83:p=76,91:p=83,92:p=83,93:p=92',
+    '--',
+    baksnapper[0].full_path(),
+    '--config', 'root',
+    '--daemon', baksnapperd[0].full_path(),
+  ],
+  depends: [
+    baksnapper,
+    baksnapperd,
+  ],
+)
