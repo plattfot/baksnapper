@@ -96,3 +96,43 @@ test(
     baksnapperd,
   ],
 )
+
+test(
+  'delete-1',
+  runner,
+  env: test_env,
+  args: [
+    '--sender', '1,2,3',
+    '--receiver', '1,2,3',
+    '--expected', '2,3',
+    '--',
+    baksnapper[0].full_path(),
+    '--config', 'root',
+    '--daemon', baksnapperd[0].full_path(),
+    '--delete', '1',
+  ],
+  depends: [
+    baksnapper,
+    baksnapperd,
+  ],
+)
+
+test(
+  'delete-1,3',
+  runner,
+  env: test_env,
+  args: [
+    '--sender', '1,2,3',
+    '--receiver', '1,2,3',
+    '--expected', '2',
+    '--',
+    baksnapper[0].full_path(),
+    '--config', 'root',
+    '--daemon', baksnapperd[0].full_path(),
+    '--delete', '1,3',
+  ],
+  depends: [
+    baksnapper,
+    baksnapperd,
+  ],
+)

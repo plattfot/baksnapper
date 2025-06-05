@@ -3,7 +3,7 @@
 # Baksnapper - Backup snapper snapshots to backup location using
 # btrfs' incremental send and receive
 
-# SPDX-FileCopyrightText: 2015-2024  Fredrik Salomonsson <plattfot@posteo.net>
+# SPDX-FileCopyrightText: 2015-2025  Fredrik Salomonsson <plattfot@posteo.net>
 # SPDX-FileCopyrightText: 2021       Nathan Dehnel
 # SPDX-FileCopyrightText: 2025       Juergen Gleiss
 #
@@ -230,7 +230,7 @@ case $key in
         ;;
     --delete)
         p_command=delete
-        p_delete_list=${2//,/ }
+        IFS=',' read -ra p_delete_list <<< "$2"
         shift 2
         ;;
     --delete-all)
