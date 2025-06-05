@@ -6,7 +6,8 @@
 ;
 ; SPDX-License-Identifier: GPL-3.0-or-later
 
-(use-modules (ice-9 format)
+(use-modules (ice-9 and-let-star)
+             (ice-9 format)
              (ice-9 ftw)
              (ice-9 getopt-long)
              (ice-9 hash-table)
@@ -149,6 +150,8 @@ incomplete.  It will have both `info.xml` and `snapshot`.  But the
   (match-lambda
     ((parent "info.xml" stat)
      (cons 'has-info #t))
+    ((parent "latest" stat)
+     (cons 'latest #t))
     ((parent "data" stat)
      (call-with-input-file (path-join parent "data")
        (lambda (port)
@@ -201,12 +204,31 @@ Where DATA is in the format of what you get calling `read-snatshots'."
        (_
         'incomplete)))))
 
+(define (check-latest expected-latest receiver-dir)
+  "Verify that EXPECTED-LATEST points to the expected snapshot.
+
+If EXPECTED-LATEST is #f skip any check and simply return true."
+  (let ((latest-path (path-join receiver-dir "latest")))
+    (cond
+     ((not expected-latest) #t)
+     ((not (file-exists? latest-path))
+      (format (current-error-port) "[FAIL] latest symlink does not exist~%")
+      #f)
+     ((not (equal? expected-latest (readlink latest-path)))
+      (format (current-error-port) "[FAIL] latest points to ~a expected ~a~%"
+              (read-link latest-path)
+              expected-latest)
+      #f)
+     (#t #t))))
+
 (define (main args)
   (let* ((option-spec
           `((config (single-char #\c) (value #t))
             (sender (single-char #\s) (value #t))
+            (latest (single-char #\l) (value #t))
             (receiver (single-char #\r) (value #t) (predicate ,check-snapshot-input))
             (expected (single-char #\e) (value #t) (predicate ,check-snapshot-input))
+            (expected-latest (single-char #\L) (value #t))
             (type (single-char #\t) (value #t))
             (help (single-char #\h) (value #f))))
          (options (getopt-long args option-spec))
@@ -226,8 +248,10 @@ the temp directory.
 Options:
   -c, --config   CONFIG     Name of the snapper config.
   -s, --sender   S0[,S1,…]  Snapshots at the source it should create.
+  -l, --latest   R          The `latest` symlink at destination, pointing to R.
   -r, --receiver R0[:RM0][,R1[:RM1],…]  Snapshots at the destination.
   -e, --expected E0[:EM0][,E1[:EM1],…]  Snapshots expected after running baksnapper.
+  -L, --expected-latest E   The expected `latest` snapshot after running baksnapper.
   -t, --type TYPE           Snapshot type, default is snapper.
 
 Where SN, RN and EN are name of snapshots at the respective
@@ -309,7 +333,8 @@ Fredrik \"PlaTFooT\" Salomonsson
             (path-join receiver-dir (snapshot-id snapshot))
             snapshot))
          receiver-snapshots)
-
+        (and-let* ((latest (option-ref options 'latest #f)))
+          (symlinkat receiver-dir latest "latest"))
         ;; Run command
         (let ((command-with-path (append command (list receiver-root-dir))))
           (format #t "Running command: ~a…~%" command-with-path)
@@ -321,12 +346,14 @@ Fredrik \"PlaTFooT\" Salomonsson
         ;; Check
         (let* ((result-snapshots
                 (alist->hash-table
-                 (map (lambda (data)
-                        (let ((snapshot (make-snapshot-from-read data)))
-                          (cons (snapshot-id snapshot) snapshot)))
-                      (cdr (read-snapshots
-                            (cons (dirname receiver-dir)
-                                  (file-system-tree receiver-dir)))))))
+                 (assq-remove!
+                  (map (lambda (data)
+                         (let ((snapshot (make-snapshot-from-read data)))
+                           (cons (snapshot-id snapshot) snapshot)))
+                       (cdr (read-snapshots
+                             (cons (dirname receiver-dir)
+                                   (file-system-tree receiver-dir)))))
+                  'latest)))
                (mismatch-result
                 (hash-fold
                  (lambda (id snapshot mismatch)
@@ -373,7 +400,10 @@ Fredrik \"PlaTFooT\" Salomonsson
                        expected-id expected-parent expected-state)))
            missing-expected)
           (when (or (not (null-list? mismatch-result))
-                    (not (null-list? missing-expected)))
+                    (not (null-list? missing-expected))
+                    (not (check-latest
+                          (option-ref options 'expected-latest #f)
+                          receiver-dir)))
             (set! exit-status 1)))
 
         ;; Clean up
@@ -388,6 +418,7 @@ Fredrik \"PlaTFooT\" Salomonsson
                       filename
                       statinfo)))
                 #t)
-              'depth)
+              'depth
+              'physical)
         (exit exit-status)))))
 
