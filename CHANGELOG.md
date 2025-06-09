@@ -12,6 +12,17 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Unreleased entries are located in [CHANGELOG.d](./CHANGELOG.d).
 
+## [2.4.0] - 2025-06-08
+### Added
+- Meson build support. [#28](https://github.com/plattfot/baksnapper/issues/28)
+- Summary report; prints destination, snapper ids, bytes of data transfer, start time, end time and duration — by Jürgen Gleiss.
+- A simple test framework. [#29](https://github.com/plattfot/baksnapper/issues/29)
+### Changed
+- Migrate to a conflictless Keep A Changelog. [#40](https://github.com/plattfot/baksnapper/issues/40)
+### Fixed
+- `--delete` does not handle multiple snapshots.
+- Latest link won't be created in all cases — by Jürgen Gleiss.
+
 ## [2.3.0] - 2025-01-04
 ### Added
 - Cleanup broken snapshots.
