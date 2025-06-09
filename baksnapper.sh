@@ -717,4 +717,6 @@ then
     $receiver link-latest "$dest_root"
 fi
 
+echo "--- Statistics ---"
 cat "${p_summary}"
+echo "--- Statistics ---"
