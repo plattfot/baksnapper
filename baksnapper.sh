@@ -531,10 +531,6 @@ function single-backup {
         error "Failed to send snapshot!"
     fi
     exec 4>&-
-    if [[ $p_link -eq 1 ]]
-    then
-        $receiver link-latest "$dest_root"
-    fi
 
     print-statistics "${start_time}" "${1}"
 }
@@ -568,10 +564,6 @@ function incremental-backup {
         error "Failed to send snapshot!"
     fi
     exec 4>&-
-    if [[ $p_link -eq 1 ]]
-    then
-        $receiver link-latest "$dest_root"
-    fi
 
     print-statistics "${start_time}" "${2}"
 }
@@ -585,10 +577,6 @@ function cleanup-broken-snapshots {
             $receiver remove-broken-snapshot  "$dest_root" "$snapshot"
         fi
     done
-    if [[ $p_link -eq 1 ]]
-    then
-        $receiver link-latest "$dest_root"
-    fi
 }
 
 # Main logic for the backup
@@ -695,10 +683,6 @@ case $p_command in
         ;;
     delete)
         $receiver remove-snapshots "$dest_root" "${p_delete_list[@]}"
-        if [[ $p_link -eq 1 ]]
-        then
-            $receiver link-latest "$dest_root"
-        fi
         ;;
     delete-all)
         echo -n "Are you sure you want to delete all backup snapshots from $dest_root? (y/N): "
@@ -708,10 +692,6 @@ case $p_command in
             case $answer in
                 y|Y)
                     $receiver remove-snapshots "$dest_root" "${dest_snapshots[@]}"
-                    if [[ $p_link -eq 1 ]]
-                    then
-                        $receiver link-latest "$dest_root"
-                    fi
                     break
                     ;;
                 n|N|"")
@@ -730,10 +710,11 @@ esac
 if [[ ${p_prune-0} == 1 ]]
 then
     $receiver remove-snapshots "$dest_root" "${only_in_dest[@]}"
-    if [[ $p_link -eq 1 ]]
-    then
-        $receiver link-latest "$dest_root"
-    fi
+fi
+
+if [[ $p_link -eq 1 ]]
+then
+    $receiver link-latest "$dest_root"
 fi
 
 cat "${p_summary}"

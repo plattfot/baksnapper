@@ -129,12 +129,14 @@ case "$1" in
         fi
         for dir in $(find "$1" -maxdepth 1 -mindepth 1 -type d -printf "%P\n"|sort --version-sort)
         do
-            if [[ -d "$dir/snapshot" && ! -h "$dir" ]]; then
+            if [[ -d "$1/$dir/snapshot" && ! -h "$1/$dir" ]]; then
                 snapshots+=("$dir")
             fi
         done
-        if ! [ ${#snapshots[@]} -eq 0 ]; then
+        if  [ ${#snapshots[@]} -ne 0 ]; then
             ln -sfn "${snapshots[-1]}" "$1/latest"
+        else
+            error "link-latest: No suitable snapshots at $1 (${#snapshots[@]})"
         fi
         ;;
     test-connection)
