@@ -12,6 +12,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Unreleased entries are located in [CHANGELOG.d](./CHANGELOG.d).
 
+## [2.4.1] - 2025-06-09
+### Fixed
+- Backing up snapshot with the wrong parent. [#27](https://github.com/plattfot/baksnapper/issues/27)
+
 ## [2.4.0] - 2025-06-08
 ### Added
 - Meson build support. [#28](https://github.com/plattfot/baksnapper/issues/28)
