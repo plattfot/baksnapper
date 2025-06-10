@@ -474,6 +474,10 @@ function compare-snapshots {
     idx_src=0
     idx_dest=0
 
+    # Using a bitmap to represent where a snapshot is located:
+    # 0b01 → exist at the source
+    # 0b10 → exist at the destination
+    # 0b11 → exist at both locations, i.e. common
     common=()
     only_in_src=()
     only_in_dest=()
@@ -484,7 +488,7 @@ function compare-snapshots {
     do
         if [ "${src_snapshots[idx_src]}" -eq "${dest_snapshots[idx_dest]}" ]
         then
-            common+=("${src_snapshots[idx_src]}")
+            common["${src_snapshots[idx_src]}"]=0b11
             ((++idx_src))
             ((++idx_dest))
         elif [ "${src_snapshots[idx_src]}" -lt "${dest_snapshots[idx_dest]}" ]
@@ -622,7 +626,7 @@ function backup {
             only_in_src=("${only_in_src[@]:1}")
             ((--num_src_only))
             single-backup "$snapshot"
-            common=("$snapshot")
+            common["$snapshot"]=0b11
         else
             # Send the specified snapshot
             single-backup "$p_snapshot"
@@ -638,7 +642,8 @@ function backup {
 
     if [[ $p_all == 0 ]]
     then
-        local common_last=${common[${#common[@]}-1]}
+        local common_ids=("${!common[@]}")
+        local common_last=${common_ids[-1]}
         # Check that it's not already synced
         if [[ "$common_last" == "$p_snapshot" ]]
         then
@@ -647,23 +652,50 @@ function backup {
         incremental-backup "$common_last" "$p_snapshot"
         return 0
     else
+        local -a src_and_common
+        for snapshot in "${!common[@]}"
+        do
+            # These exist at both locations → 0b01
+            src_and_common["$snapshot"]=0b11
+        done
+        for snapshot in "${only_in_src[@]}"
+        do
+            # These only exist at the source → 0b01
+            src_and_common["$snapshot"]=0b01
+        done
+        local num_snapshots=${#src_and_common[@]}
         # Find the first common snapshot that is lower than the first
         # source only snapshot. This will be the start of the incremental
         # backup. If no one is found it will use the lowest common one.
         local first_src_snapshot=${only_in_src[0]}
-        local idx=${#common[@]}-1
+        local snapshot_ids=("${!src_and_common[@]}")
+        local idx=${num_snapshots}-1
         for (( ; idx >= 0; --idx ))
         do
-            if [[ ${common[idx]} -lt $first_src_snapshot ]]
+            if [[ ${snapshot_ids[idx]} -lt $first_src_snapshot ]]
             then
-                break
+                if [[ ${src_and_common[${snapshot_ids[idx]}]} == 0b11 ]]
+                then
+                    break
+                fi
             fi
         done
-        incremental-backup "${common[idx]}" "$first_src_snapshot"
-
-        for (( idx=1; idx < num_src_only; ++idx ))
+        incremental-backup "${snapshot_ids[idx]}" "$first_src_snapshot"
+        src_and_common["${snapshot_ids[idx]}"]=0b11
+        for (( src_idx = 1; src_idx < num_src_only; ++src_idx ))
         do
-            incremental-backup "${only_in_src[idx-1]}" "${only_in_src[idx]}"
+            # Find the source only snapshot in the snapshot_ids
+            local src_snapshot=${only_in_src[src_idx]}
+            for (( ; idx < num_snapshots; ++idx ))
+            do
+                if [[ ${snapshot_ids[idx]} -eq $src_snapshot ]]
+                then
+                    break
+                fi
+            done
+            # Use the common snapshot previous to it as the parent
+            incremental-backup "${snapshot_ids[idx-1]}" "$src_snapshot"
+            src_and_common["$src_snapshot"]=0b11
         done
     fi
 }
