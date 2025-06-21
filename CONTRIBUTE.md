@@ -9,7 +9,7 @@ This document is a guide on what you should think about when contributing to bak
 - Use `changelog:`, `build:` or `test:` prefix tag when applicable.
 - Add `[#<id>]` to the end of the subject if commit is associated with an issue.
 - Add a test if your PR is not covered by one already.
-- Short subject for the commit messag.
+- Short subject for the commit message.
 - Detailed explanation of the reason behind the commit in the body.
 
 ## Changelog
@@ -49,7 +49,7 @@ Otherwise you'll need to manually generate the filename.  You can use `date +%Y%
 
 To help troubleshoot and ease of maintenance the commits, they should just contain one logical change each.  The logical change should be the smallest possible that make sense.  An atomic commit.  These can be hard to define what they encompass, but easiest rule of thumb is if you need to include "and" in the subject of the commit then it does not contain _one_ change and must be split.
 
-This helps both when reviewing the code for a PR and when needing to hunt down when a bug got introduced. As you can use `git bisect` to help you narrow it down.  If a commit contain multiple changes it can be harder to figure out what of those changes introduced the bug without further digging.
+This helps both when reviewing the code for a PR and when needing to hunt down when a bug got introduced. As you can use `git bisect` to help you narrow it down.  If a commit contain multiple changes it can be harder to figure out which one of those changes introduced the bug without further digging.
 
 ### Suffix tag
 
@@ -83,6 +83,6 @@ For "Add feedback from PR".  Squash these into the commits they affect and force
 
 ### Pull Request workflow
 
-The workflow for baksnapper is to rebase PRs if you need to sync-up with the target branch and merge when it is ready to be merge into the master branch.  Feedback should be squashed into the commits they address and force pushed to the PR branch.  That way the history is kept clean from noise.
+Rebase PRs if you need to sync-up with the target branch and merge when it is ready to be merge into the master branch.  Feedback should be squashed into the commits they address and force pushed to the PR branch.  That way the history is kept clean from noise.
 
 **NOTE:** If you are not comfortable rebasing and/or squashing commits, that is fine.  Just mention that in the pull request and the person reviewing will take care of that for you when merging the changes.
