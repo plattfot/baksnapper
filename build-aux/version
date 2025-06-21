@@ -31,7 +31,7 @@ if ! _args=$(getopt --name "version" \
              --long major \
              --long minor \
              --long patch \
-             --long mm \
+             --long short \
              -- "$@")
 then
     error "Try '$0 --help for more information.'"
