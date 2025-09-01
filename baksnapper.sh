@@ -276,6 +276,7 @@ case $key in
     --type)
         p_type=$2
         shift 2
+        warning "--type is deprecated, use position arguments SOURCE DEST."
         ;;
     --link)
         p_link=1
