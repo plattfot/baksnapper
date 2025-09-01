@@ -146,10 +146,12 @@ function read-config {
             CONFIG*=*)
                 get-value "$line"
                 p_config=${p_config-"$_value"}
+                warning "CONFIG is deprecated, use SOURCE/DEST."
             ;;
             PATH*=*)
                 get-value "$line"
                 parse-full-path "$_value"
+                warning "PATH is deprecated, use SOURCE/DEST."
             ;;
             DAEMON*=*)
                 get-value "$line"
@@ -244,6 +246,7 @@ case $key in
         ;;
     --config)
         p_config="$2"
+        warning "--config is deprecated, use position arguments SOURCE DEST."
         shift 2
         ;;
     --configfile)
