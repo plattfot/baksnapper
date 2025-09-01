@@ -10,10 +10,15 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 read -rd '' help <<EOF
-Usage: $0 [OPTIONS...] [ADDRESS:]PATH
+Usage: $0 [OPTIONS...] [ADDRESS_SRC:]SOURCE [ADDRESS_DST:]DEST
+       $0 --config NAME [OPTIONS...] [ADDRESS:]PATH
 
-Backup snapper snapshot to PATH using btrfs incremental send and
-receive. ADDRESS is specified for remote backups.
+Backup snapper snapshot from SOURCE to DEST using btrfs incremental
+send and receive. ADDRESS_SRC/_DST are specified for remote backups.
+
+Deprecated usage is to use --config NAME for the location of the
+snapper config and PATH for a directory containing snapper snapshots.
+Then control direction using --type TYPE.
 
 Options:
 
@@ -56,7 +61,31 @@ Options:
 
 --version         Print version and then exit
 
-Example:
+Examples:
+
+1)
+$0 /.snapshots/ /mnt/backup/root
+Backup the last root snapshot to /mnt/backup/root, if it is the first
+time it will send the whole snapshot otherwise it will just send what
+have changed.
+
+2)
+$0 --delete 1,2,3,4 /.snapshots /mnt/backup/root
+Delete the root's snapshots 1,2,3 and 4 for from /mnt/backup/root,
+will output a warning if a snapshot doesn't exist.
+
+3)
+$0 /.snapshots foo:/mnt/backup/root
+Same as example 1 except it will send the backups to the remote
+machine named foo.
+
+4)
+$0 bar:/.snapshots /mnt/backup
+Pull snapshots from remote machine bar at location /.snaphosts to
+/mnt/backup/root.  Similar behavior as 1 and 3 for how snapshots are
+transfered.
+
+Deprecated examples:
 
 1)
 $0 --config root /mnt/backup
@@ -65,7 +94,7 @@ it will send the whole snapshot otherwise it will just send what have
 changed.
 
 2)
-$0 --delete 1,2,3,4 -c root /mnt/backup
+$0 --delete 1,2,3,4 --config root /mnt/backup
 Delete the root's snapshots 1,2,3 and 4 for from /mnt/backup, will
 output a warning if a snapshot doesn't exist.
 
