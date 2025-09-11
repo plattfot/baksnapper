@@ -143,18 +143,6 @@ function warning {
     echo -e "[Warning] $1" 1>&2
 }
 
-
-function parse-full-path {
-    if [[ $1 =~ \(.*?\):\(.*\) ]]
-    then
-        p_ssh_address=${BASH_REMATCH[1]}
-        ssh=${ssh-"ssh $p_ssh_address"}
-        p_dest=${BASH_REMATCH[2]}
-    else
-        p_dest=${p_dest-"$1"}
-    fi
-}
-
 function read-config {
 
     function get-value {
@@ -179,7 +167,7 @@ function read-config {
             ;;
             PATH*=*)
                 get-value "$line"
-                parse-full-path "$_value"
+                p_dest=${p_dest-"$_value"}
                 warning "PATH is deprecated, use SOURCE/DEST."
             ;;
             DAEMON*=*)
@@ -328,17 +316,7 @@ esac
 done
 
 ## Setup #######################################################################
-while [[ $# -gt 0 ]]
-do
-    case $1 in
-        *)
-            parse-full-path "$1"
-            shift
-            break
-            ;;
-    esac
-done
-
+p_dest=$1
 
 if [[ $p_verbose == 1 ]]
 then
