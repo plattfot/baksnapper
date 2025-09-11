@@ -117,6 +117,41 @@ test(
   ],
 )
 
+latest_test_config = custom_target(
+  input: configure_file(
+    output: 'latest.bsconf.meson',
+    configuration: {
+      'CONFIG': 'root',
+      'DAEMON': baksnapperd[0].full_path(),
+      'PRUNE': 'NO',
+      'ALL': 'NO',
+      'VERBOSE': 'NO',
+      'LINK': 'YES',
+    }
+  ),
+  output: 'latest.bsconf',
+  command: [find_program('tests/bin/config-to-bsconf'), '@INPUT@'],
+  capture: true
+)
+
+test(
+  'latest-configfile',
+  runner,
+  env: test_env,
+  args: [
+    '--sender', '1,2,3',
+    '--expected', '3',
+    '--expected-latest', '3',
+    '--',
+    baksnapper[0].full_path(),
+    '--configfile', latest_test_config.full_path(),
+  ],
+  depends: [
+    baksnapper,
+    baksnapperd,
+    latest_test_config,
+  ],
+)
 
 test(
   'backup-2',
@@ -154,6 +189,42 @@ test(
   depends: [
     baksnapper,
     baksnapperd,
+  ],
+)
+
+prune_test_config = custom_target(
+  input: configure_file(
+    output: 'prune.bsconf.meson',
+    configuration: {
+      'CONFIG': 'home',
+      'DAEMON': baksnapperd[0].full_path(),
+      'PRUNE': 'YES',
+      'ALL': 'NO',
+      'VERBOSE': 'NO',
+    }
+  ),
+  output: 'prune.bsconf',
+  command: [find_program('tests/bin/config-to-bsconf'), '@INPUT@'],
+  capture: true
+)
+
+test(
+  'prune-configfile',
+  runner,
+  env: test_env,
+  args: [
+    '--sender', '1,2,3,6,7,8',
+    '--receiver', '1,2,3,4,5,6',
+    '--expected', '1,2,3,6,8:p=6',
+    '--',
+    baksnapper[0].full_path(),
+    '--configfile', prune_test_config.full_path(),
+    '--config', 'root',
+  ],
+  depends: [
+    baksnapper,
+    baksnapperd,
+    prune_test_config,
   ],
 )
 
@@ -197,6 +268,41 @@ test(
   ],
 )
 
+delete_1_test_config = custom_target(
+  input: configure_file(
+    output: 'delete-1.bsconf.meson',
+    configuration: {
+      'CONFIG': 'root',
+      'DAEMON': baksnapperd[0].full_path(),
+      'PRUNE': 'NO',
+      'ALL': 'NO',
+      'VERBOSE': 'NO',
+    }
+  ),
+  output: 'delete-1.bsconf',
+  command: [find_program('tests/bin/config-to-bsconf'), '@INPUT@'],
+  capture: true
+)
+
+test(
+  'delete-1-configfile',
+  runner,
+  env: test_env,
+  args: [
+    '--sender', '1,2,3',
+    '--receiver', '1,2,3',
+    '--expected', '2,3',
+    '--',
+    baksnapper[0].full_path(),
+    '--configfile', delete_1_test_config.full_path(),
+    '--delete', '1',
+  ],
+  depends: [
+    baksnapper,
+    baksnapperd,
+    delete_1_test_config,
+  ],
+)
 # https://github.com/plattfot/baksnapper/issues/27
 test(
   'backup-all-with-right-parent',
@@ -215,6 +321,40 @@ test(
   depends: [
     baksnapper,
     baksnapperd,
+  ],
+)
+
+all_test_config = custom_target(
+  input: configure_file(
+    output: 'all.bsconf.meson',
+    configuration: {
+      'CONFIG': 'root',
+      'DAEMON': baksnapperd[0].full_path(),
+      'ALL': 'YES',
+      'VERBOSE': 'NO',
+    }
+  ),
+  output: 'all.bsconf',
+  command: [find_program('tests/bin/config-to-bsconf'), '@INPUT@'],
+  capture: true
+)
+
+test(
+  'backup-all-configfile',
+  runner,
+  env: test_env,
+  args: [
+    '--sender', '64,65,76,83,91,92,93',
+    '--receiver', '64,66:p=64,76:p=66,83:p=76,91:p=83,92:p=83',
+    '--expected', '64,65:p=64,66:p=64,76:p=66,83:p=76,91:p=83,92:p=83,93:p=92',
+    '--',
+    baksnapper[0].full_path(),
+    '--configfile', all_test_config.full_path(),
+  ],
+  depends: [
+    baksnapper,
+    baksnapperd,
+    all_test_config,
   ],
 )
 
