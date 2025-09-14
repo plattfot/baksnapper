@@ -145,63 +145,81 @@ function warning {
 
 function read-config {
 
+    # Get value from line
+    # 1 [out]: output variable
+    # 2 [in]: line to parse value from
     function get-value {
-        _value=$(echo "$1" | sed -Ee 's/^[A-Z_ ]+=[ ]*(.*?)/\1/' -e 's/#.*//')
+        declare -n out=$1
+        out=$(echo "$2" | sed -Ee 's/^[A-Z_ ]+=[ ]*(.*?)/\1/' -e 's/#.*//')
     }
 
+    # Only get value from line if output is unset
+    # 1 [out]: output variable
+    # 2 [in]: line to parse value from
+    function get-value-if-not-set {
+        declare -n out=$1
+        local value
+        get-value value "$2"
+        out=${out-$value}
+    }
+
+    # Parse value as boolean
+    # 1 [out]: output variable
+    # 2 [ini: value to interpret as boolean
     function parse-bool {
-        if [[ "$1" =~ YES|yes|Yes|1 ]]
+        declare -n out=$1
+        if [[ "$2" =~ YES|yes|Yes|1 ]]
         then
-            _bool=1
+            out=1
         else
-            _bool=0
+            out=0
         fi
+    }
+
+    # Only get boolean from line if output is unset
+    # 1 [out]: output variable
+    # 2 [in]: line to parse as bool
+    function get-bool-if-not-set {
+        declare -n out=$1
+        local value
+        get-value value "$2"
+        local bool
+        parse-bool bool "$value"
+        out=${out-$bool}
     }
 
     while read -r line; do
         case $line in
             CONFIG*=*)
-                get-value "$line"
-                p_config=${p_config-"$_value"}
+                get-value-if-not-set p_config "$line"
                 warning "CONFIG is deprecated, use SOURCE/DEST."
             ;;
             PATH*=*)
-                get-value "$line"
-                p_dest=${p_dest-"$_value"}
+                get-value-if-not-set p_dest "$line"
                 warning "PATH is deprecated, use SOURCE/DEST."
             ;;
             DAEMON*=*)
-                get-value "$line"
-                p_baksnapperd=${p_baksnapperd-$_value}
+                get-value-if-not-set p_baksnapperd "$line"
                 ;;
             PRUNE*=*)
-                get-value "$line"
-                parse-bool "$_value"
-                p_prune=${p_prune-$_bool}
+                get-bool-if-not-set p_prune "$line"
                 ;;
             ALL*=*)
-                get-value "$line"
-                parse-bool "$_value"
-                p_all=${p_all-$_bool}
+                get-bool-if-not-set p_all "$line"
                 ;;
             VERBOSE*=*)
-                get-value "$line"
-                parse-bool "$_value"
-                p_verbose=${p_verbose-$_bool}
+                get-bool-if-not-set p_verbose "$line"
                 ;;
             LINK*=*)
-                get-value "$line"
-                parse-bool "$_value"
-                p_link=${p_link-$_bool}
+                get-bool-if-not-set p_link "$line"
                 ;;
             TYPE*=*)
-                get-value "$line"
-                p_type=${p_type-$_value}
+                get-value-if-not-set p_type "$line"
                 warning "TYPE is deprecated, use SOURCE/DEST."
                 ;;
             PRIVATE_KEY*=*)
-                get-value "$line"
-                p_ssh_args=${p_ssh_args-" -i $_value"}
+                get-value value "$line"
+                p_ssh_args=${p_ssh_args-" -i $value"}
                 ;;
             *)
                 ;;
