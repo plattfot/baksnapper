@@ -180,6 +180,7 @@ function read-config {
             TYPE*=*)
                 get-value "$line"
                 p_type=${p_type-$_value}
+                warning "TYPE is deprecated, use SOURCE/DEST."
                 ;;
             PRIVATE_KEY*=*)
                 get-value "$line"
