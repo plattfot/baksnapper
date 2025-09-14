@@ -130,7 +130,7 @@ function cleanup {
 
 function exit-msg {
     cleanup
-    notify-send -u critical "Done backing up $p_config. Safe to turn off computer."
+    notify-send -u critical "Done backing up $src_root. Safe to turn off computer."
 }
 
 
@@ -334,38 +334,97 @@ esac
 done
 
 ## Setup #######################################################################
-p_dest=$1
-
 if [[ $p_verbose == 1 ]]
 then
     set -x
 fi
 
-
 p_baksnapperd=${p_baksnapperd=baksnapperd}
 p_all=${p_all=0}
 
-# Error checks
-#[[ $USER != root ]] && error "Need to be root to run this script!"
-[[ -z $p_config ]] && error "You need to specify the config name to backup!"
-[[ -z $p_dest ]] && error "No path specified!"
-
-
-regex='(.*?):(.*)'
-if [[ $p_dest =~ $regex ]]
+#### Deprecated config way of setup ############################################
+if [[ -n $p_config ]]
 then
-    address="${BASH_REMATCH[1]}"
-    ssh="ssh $p_ssh_args $address"
-    dest="${BASH_REMATCH[2]}"
+    [[ -z "$1" ]] && error "No path specified!"
+
+    p_dest=${p_dest-$1}
+    regex='(.*?):(.*)'
+    if [[ $p_dest =~ $regex ]]
+    then
+        address="${BASH_REMATCH[1]}"
+        ssh="ssh $p_ssh_args $address"
+        dest="${BASH_REMATCH[2]}"
+    else
+        dest=$p_dest
+    fi
+
+    if [[ -n "$ssh" ]]
+    then
+        # Sanity check for ssh
+        $ssh -q test-connection || error "Unable to connect to $address"
+    fi
+
+    case ${p_type="push"} in
+        pull|PULL)
+            sender=${ssh-$p_baksnapperd}
+            receiver=$p_baksnapperd
+            ;;
+        push|PUSH)
+            sender=$p_baksnapperd
+            receiver=${ssh-$p_baksnapperd}
+            ;;
+        *)
+            error "Unknown type! $p_type"
+            ;;
+    esac
+
+    if ! receiver_version=$($receiver version)
+    then
+        receiver_version=1
+    fi
+
+    if ! sender_version=$($sender version)
+    then
+        sender_version=1
+    fi
+
+    if [[ "$receiver_version" -gt 3 ]]
+    then
+        error "receiver is too new, need to use version 1-3"
+    fi
+
+    if [[ "$sender_version" -gt 3 ]]
+    then
+        error "sender is too new, need to use version 1-3"
+    fi
+
+    # Get the subvolume to backup
+    case $sender_version in
+        2|3)
+            subvolume=$($sender get-snapper-root "$p_config")
+            ;;
+        1)
+            if ! subvolume=$($sender list-snapper-snapshots "$p_config")
+            then
+                error "Something went wrong when fetching the snapper root from sender"
+            fi
+            ;;
+        *)
+            error "Unknown version for sender '$sender_version'"
+            ;;
+    esac
+
+    src_root=${subvolume:?}/.snapshots
+    dest_root="$dest/$p_config"
 else
-    dest=$p_dest
+    error "You need to specify the SOURCE and DEST or the config name to backup!"
 fi
 
 ## Setup signals ###############################################################
 # EXIT   --> if notify-send is installed, inform the user; always cleanup
 if hash notify-send 2> /dev/null
 then
-    notify-send -u critical "Backing up $p_config. Do not turn off computer!"
+    notify-send -u critical "Backing up $src_root. Do not turn off computer!"
     trap exit-msg EXIT
 else
     trap cleanup EXIT
@@ -375,66 +434,6 @@ fi
 p_temp_dir=$(mktemp -d "${TEMP:-/tmp/}$(basename "$0").XXXXX")
 p_summary="${p_temp_dir}/summary.txt"
 printf "dest_root\tsrc\tdest\tbytes\tstart\tend\tduration\n" >"${p_summary}"
-
-
-if [[ -n "$ssh" ]]
-then
-    # Sanity check for ssh
-    $ssh -q test-connection || error "Unable to connect to $address"
-fi
-
-case ${p_type="push"} in
-    pull|PULL)
-        sender=${ssh-$p_baksnapperd}
-        receiver=$p_baksnapperd
-    ;;
-    push|PUSH)
-        sender=$p_baksnapperd
-        receiver=${ssh-$p_baksnapperd}
-    ;;
-    *)
-        error "Unknown type! $p_type"
-    ;;
-esac
-
-if ! receiver_version=$($receiver version)
-then
-    receiver_version=1
-fi
-
-if ! sender_version=$($sender version)
-then
-    sender_version=1
-fi
-
-if [[ "$receiver_version" -gt 3 ]]
-then
-    error "receiver is too new, need to use version 1-3"
-fi
-
-if [[ "$sender_version" -gt 3 ]]
-then
-    error "sender is too new, need to use version 1-3"
-fi
-
-# Get the subvolume to backup
-case $sender_version in
-    2|3)
-        subvolume=$($sender get-snapper-root "$p_config")
-        ;;
-    1)
-        if ! subvolume=$($sender list-snapper-snapshots "$p_config")
-        then
-            error "Something went wrong when fetching the snapper root from sender"
-        fi
-        ;;
-    *)
-        error "Unknown version for sender '$sender_version'"
-        ;;
-esac
-
-src_root=${subvolume:?}/.snapshots
-dest_root="$dest/$p_config"
 
 $receiver create-config "$dest_root" || error "Problem creating config at backup location"
 
