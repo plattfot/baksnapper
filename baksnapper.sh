@@ -442,7 +442,7 @@ $receiver create-config "$dest_root" || error "Problem creating config at backup
 
 # - First argument  ... start-time to calculate the duration
 # - Second argument ... snapper id
-# Function ist used by single-backup and incremental-backup
+# Function is used by single-backup and incremental-backup
 function print-statistics {
     local start_time
     local end_time
