@@ -98,6 +98,24 @@ test(
 )
 
 test(
+  'default-src-dest',
+  runner,
+  env: test_env,
+  args: [
+    '--sender', '1,2,3',
+    '--expected', '3',
+    '--src-dest',
+    '--',
+    baksnapper[0].full_path(),
+    '--daemon', baksnapperd[0].full_path(),
+  ],
+  depends: [
+    baksnapper,
+    baksnapperd,
+  ],
+)
+
+test(
   'latest',
   runner,
   env: test_env,
