@@ -229,6 +229,7 @@ If EXPECTED-LATEST is #f skip any check and simply return true."
             (receiver (single-char #\r) (value #t) (predicate ,check-snapshot-input))
             (expected (single-char #\e) (value #t) (predicate ,check-snapshot-input))
             (expected-latest (single-char #\L) (value #t))
+            (src-dest (value #f))
             (type (single-char #\t) (value #t))
             (help (single-char #\h) (value #f))))
          (options (getopt-long args option-spec))
@@ -253,6 +254,7 @@ Options:
   -e, --expected E0[:EM0][,E1[:EM1],…]  Snapshots expected after running baksnapper.
   -L, --expected-latest E   The expected `latest` snapshot after running baksnapper.
   -t, --type TYPE           Snapshot type, default is snapper.
+      --src-dest            Give baksnapper source and dest locations.
 
 Where SN, RN and EN are name of snapshots at the respective
 location/stage.  RMN and EMN are metadata associated with a snapshot
@@ -336,7 +338,10 @@ Fredrik \"PlaTFooT\" Salomonsson
         (and-let* ((latest (option-ref options 'latest #f)))
           (symlinkat receiver-dir latest "latest"))
         ;; Run command
-        (let ((command-with-path (append command (list receiver-root-dir))))
+        (let ((command-with-path
+               (append command (if (option-ref options 'src-dest #f)
+                                   (list sender-dir receiver-dir)
+                                   (list receiver-root-dir)))))
           (format #t "Running command: ~a…~%" command-with-path)
           (setenv "BAKSNAPPER_TEST_RUNNER_SENDER_ROOT" test-dir)
           (let ((pipe (apply open-pipe* OPEN_READ command-with-path)))
