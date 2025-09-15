@@ -299,6 +299,8 @@ case $key in
         ;;
     --private-key)
         p_ssh_args=" -i $2"
+        p_dest_ssh_args=("-i" "$2")
+        p_src_ssh_args=("-i" "$2")
         shift 2
         ;;
     -p|--prune)
@@ -416,6 +418,57 @@ then
 
     src_root=${subvolume:?}/.snapshots
     dest_root="$dest/$p_config"
+elif [[ $# -ge 2 ]]
+then
+    # Setup the endpoint's directory and transfer command
+    # 1 [out]: will store the root of the endpoint
+    # 2 [out]: will store the transfer command for the endpoint
+    # 3 [in]: source/dest input
+    # 4 [in]...: ssh arguments
+    function setup-endpoint {
+        declare -n root=$1
+        declare -n transfer=$2
+        local regex='(.*?):(.*)'
+        local ssh
+        local address
+        local input=$3
+        shift 3
+        if [[ $input =~ $regex ]]
+        then
+            address="${BASH_REMATCH[1]}"
+            ssh="ssh $* $address"
+            root="${BASH_REMATCH[2]}"
+            transfer=$ssh
+
+            # Sanity check for ssh
+            $ssh -q test-connection || error "Unable to connect to $address"
+        else
+            # shellcheck disable=SC2034
+            root=$input
+            # shellcheck disable=SC2034
+            transfer=$p_baksnapperd
+        fi
+
+    }
+    setup-endpoint src_root sender "$1" "${p_src_ssh_args[@]}"
+    setup-endpoint dest_root receiver "$2" "${p_dest_ssh_args[@]}"
+
+    # Get the version of the daemon
+    # 1: save the version to this variable
+    # 2: variable that contains the baksnapperd command
+    function get-daemon-version {
+        declare -n version=$1
+        if ! version=$(${!2} version)
+        then
+            version=1
+        fi
+        if [[ "$version" -gt 3 ]]
+        then
+            error "$2 is too new, need to use version 1-3"
+        fi
+    }
+    get-daemon-version sender_version sender
+    get-daemon-version receiver_version receiver
 else
     error "You need to specify the SOURCE and DEST or the config name to backup!"
 fi
