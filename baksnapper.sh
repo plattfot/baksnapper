@@ -123,6 +123,8 @@ This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.
 EOF
 
+shopt -s extglob
+
 function cleanup {
     exec 4>&-
     rm -rf "${p_temp_dir}"
@@ -197,6 +199,12 @@ function read-config {
             PATH*=*)
                 get-value-if-not-set p_dest "$line"
                 warning "PATH is deprecated, use SOURCE/DEST."
+            ;;
+            (SOURCE*([[:blank:]])=*)
+                get-value-if-not-set p_src "$line"
+            ;;
+            (DEST*([[:blank:]])=*)
+                get-value-if-not-set p_dest "$line"
             ;;
             DAEMON*=*)
                 get-value-if-not-set p_baksnapperd "$line"
@@ -344,6 +352,12 @@ fi
 p_baksnapperd=${p_baksnapperd=baksnapperd}
 p_all=${p_all=0}
 
+if [[ $# -ge 2 ]]
+then
+    p_src=$1
+    p_dest=$2
+fi
+
 #### Deprecated config way of setup ############################################
 if [[ -n $p_config ]]
 then
@@ -418,7 +432,7 @@ then
 
     src_root=${subvolume:?}/.snapshots
     dest_root="$dest/$p_config"
-elif [[ $# -ge 2 ]]
+elif [[ -n "$p_src" && -n "$p_dest" ]]
 then
     # Setup the endpoint's directory and transfer command
     # 1 [out]: will store the root of the endpoint
@@ -450,8 +464,8 @@ then
         fi
 
     }
-    setup-endpoint src_root sender "$1" "${p_src_ssh_args[@]}"
-    setup-endpoint dest_root receiver "$2" "${p_dest_ssh_args[@]}"
+    setup-endpoint src_root sender "$p_src" "${p_src_ssh_args[@]}"
+    setup-endpoint dest_root receiver "$p_dest" "${p_dest_ssh_args[@]}"
 
     # Get the version of the daemon
     # 1: save the version to this variable
