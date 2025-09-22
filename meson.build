@@ -276,3 +276,24 @@ foreach conf: [
     )
   endforeach
 endforeach
+
+test(
+  'not-enough-inputs',
+  baksnapper[0],
+  env: test_env,
+  depends: [
+    baksnapper,
+  ],
+  should_fail: true,
+)
+
+test(
+  'not-enough-inputs-src-dest',
+  baksnapper[0],
+  args: ['.'],
+  env: test_env,
+  depends: [
+    baksnapper,
+  ],
+  should_fail: true,
+)
