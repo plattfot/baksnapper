@@ -230,6 +230,8 @@ If EXPECTED-LATEST is #f skip any check and simply return true."
             (expected (single-char #\e) (value #t) (predicate ,check-snapshot-input))
             (expected-latest (single-char #\L) (value #t))
             (src-dest (value #f))
+            (src-ssh (value #t))
+            (dest-ssh (value #t))
             (type (single-char #\t) (value #t))
             (help (single-char #\h) (value #f))))
          (options (getopt-long args option-spec))
@@ -255,6 +257,8 @@ Options:
   -L, --expected-latest E   The expected `latest` snapshot after running baksnapper.
   -t, --type TYPE           Snapshot type, default is snapper.
       --src-dest            Give baksnapper source and dest locations.
+      --src-ssh ADDRESS     Prepend ADDRESS: to source location.
+      --dest-ssh ADDRESS    Prepend ADDRESS: to dest location.
 
 Where SN, RN and EN are name of snapshots at the respective
 location/stage.  RMN and EMN are metadata associated with a snapshot
@@ -338,10 +342,17 @@ Fredrik \"PlaTFooT\" Salomonsson
         (and-let* ((latest (option-ref options 'latest #f)))
           (symlinkat receiver-dir latest "latest"))
         ;; Run command
-        (let ((command-with-path
-               (append command (if (option-ref options 'src-dest #f)
-                                   (list sender-dir receiver-dir)
-                                   (list receiver-root-dir)))))
+        (let* ((append-ssh (lambda (address dir)
+                             (if address
+                                 (string-append address ":" dir)
+                                 dir)))
+               (command-with-path
+                (append command
+                        (if (option-ref options 'src-dest #f)
+                            (list
+                             (append-ssh (option-ref options 'src-ssh #f) sender-dir)
+                             (append-ssh (option-ref options 'dest-ssh #f) receiver-dir))
+                            (list (append-ssh (option-ref options 'dest-ssh #f) receiver-root-dir))))))
           (format #t "Running command: ~a…~%" command-with-path)
           (setenv "BAKSNAPPER_TEST_RUNNER_SENDER_ROOT" test-dir)
           (let ((pipe (apply open-pipe* OPEN_READ command-with-path)))
