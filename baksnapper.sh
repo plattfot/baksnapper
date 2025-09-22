@@ -231,9 +231,19 @@ function read-config {
                 get-value-if-not-set p_type "$line"
                 warning "TYPE is deprecated, use SOURCE/DEST."
                 ;;
-            PRIVATE_KEY*=*)
+            (PRIVATE_KEY*([[:blank:]])=*)
                 get-value value "$line"
                 p_ssh_args=${p_ssh_args-" -i $value"}
+                p_src_ssh_args=${p_src_ssh_args-" -i $value"}
+                p_dest_ssh_args=${p_dest_ssh_args-" -i $value"}
+                ;;
+            (SOURCE_PRIVATE_KEY*([[:blank:]])=*)
+                get-value value "$line"
+                p_src_ssh_args=${p_src_ssh_args-" -i $value"}
+                ;;
+            (DEST_PRIVATE_KEY*([[:blank:]])=*)
+                get-value value "$line"
+                p_dest_ssh_args=${p_dest_ssh_args-" -i $value"}
                 ;;
             *)
                 ;;
