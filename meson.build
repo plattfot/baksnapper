@@ -77,6 +77,10 @@ test(
 
 test_env = environment()
 test_env.prepend('PATH', meson.current_source_dir() / 'tests/bin')
+test_env.set('MOCK_SSH_CONNECTION', '0')
+test_env.set('MOCK_SSH_KEY', 'foo.key=foo.example.com:bar.key=bar.example.com')
+test_env.set('MOCK_SSH_BAKSNAPPERD', baksnapperd[0].full_path())
+
 runner = find_program('./tests/runner.scm')
 
 test_configuration = {
@@ -245,38 +249,78 @@ foreach conf: [
       'configfile-baksnapper-args': [],
     }
   ]
-    baksnapper_args = []
-    test_depends = []
-    if conf['configfile']
-      test_config = custom_target(
-        input: configure_file(
-          output: test_entry['name'] + '.bsconf.meson',
-          configuration: test_configuration[test_entry['configfile']]
-        ),
-        output: test_entry['name'] + '.bsconf',
-        command: [find_program('tests/bin/config-to-bsconf'), '@INPUT@'],
-        capture: true,
-      )
-      baksnapper_args = [
-        '--configfile', test_config.full_path()
-      ] + test_entry['configfile-baksnapper-args']
-      test_depends = [test_config]
-    endif
-    test(
-      test_entry['name']+conf['suffix'],
-      runner,
-      env: test_env,
-      args: test_entry['runner-args'] + conf['runner-args'] +
-            ['--'] +
-            test_entry['baksnapper-args'] + conf['baksnapper-args'] + baksnapper_args,
-      depends: [
-        baksnapper,
-        baksnapperd,
-      ] + test_depends,
-    )
+    foreach ssh: [
+      {
+        'suffix': '',
+        'args': [],
+      },
+      {
+        'suffix': '-ssh-src',
+        'args': ['--src-ssh', 'foo.example.com'],
+      },
+      {
+        'suffix': '-ssh-dest',
+        'args': ['--dest-ssh', 'bar.example.com'],
+      },
+      {
+        'suffix': '-ssh-both',
+        'args': ['--src-ssh', 'foo.example.com',
+                 '--dest-ssh', 'bar.example.com'],
+      },
+    ]
+      foreach ssh_key: [
+        {
+          'suffix': '',
+          'args': [],
+        },
+        {
+          'suffix': '-key-src',
+          'args': ['--src-private-key', 'foo.key'],
+        },
+        {
+          'suffix': '-key-dest',
+          'args': ['--dest-private-key', 'bar.key'],
+        },
+        {
+          'suffix': '-key-both',
+          'args': ['--src-private-key', 'foo.key',
+                   '--dest-private-key', 'bar.key'],
+        },
+      ]
+        baksnapper_args = []
+        test_depends = []
+        if conf['configfile']
+          test_config = custom_target(
+            input: configure_file(
+              output: test_entry['name'] + ssh['suffix'] + ssh_key['suffix'] + '.bsconf.meson',
+              configuration: test_configuration[test_entry['configfile']]
+            ),
+            output: test_entry['name'] + ssh['suffix'] + ssh_key['suffix'] + '.bsconf',
+            command: [find_program('tests/bin/config-to-bsconf'), '@INPUT@'],
+            capture: true,
+          )
+          baksnapper_args = [
+            '--configfile', test_config.full_path()
+          ] + test_entry['configfile-baksnapper-args']
+          test_depends = [test_config]
+        endif
+        test(
+          test_entry['name']+conf['suffix']+ssh['suffix']+ssh_key['suffix'],
+          runner,
+          env: test_env,
+          args: test_entry['runner-args'] + conf['runner-args'] + ssh['args'] +
+                ['--'] +
+                test_entry['baksnapper-args'] + conf['baksnapper-args'] +
+                ssh_key['args'] + baksnapper_args,
+          depends: [
+            baksnapper,
+            baksnapperd,
+          ] + test_depends,
+        )
+      endforeach
+    endforeach
   endforeach
 endforeach
-
 test(
   'not-enough-inputs',
   baksnapper[0],
