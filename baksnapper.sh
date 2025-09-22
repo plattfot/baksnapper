@@ -32,6 +32,12 @@ Options:
 --private-key KEY Specify the private KEY file to use when connecting
                   to a remote backup location.
 
+--src-private-key KEY  Specify the private KEY file to use when
+                  connecting to the remote source location.
+
+--dest-private-key KEY  Specify the private KEY file to use when
+                  connecting to the remote destination location.
+
 -p, --prune       Prune the backups by deleting snapshots that isn't
                   in the source directory.
 
@@ -244,6 +250,8 @@ if ! _args=$(getopt --name "baksnapper" \
              --long delete: \
              --long daemon: \
              --long private-key: \
+             --long src-private-key: \
+             --long dest-private-key: \
              --long snapshot: \
              --long type: \
              --long all \
@@ -309,6 +317,14 @@ case $key in
         p_ssh_args=" -i $2"
         p_dest_ssh_args=("-i" "$2")
         p_src_ssh_args=("-i" "$2")
+        shift 2
+        ;;
+    --src-private-key)
+        p_src_ssh_args=("-i" "$2")
+        shift 2
+        ;;
+    --dest-private-key)
+        p_dest_ssh_args=("-i" "$2")
         shift 2
         ;;
     -p|--prune)
