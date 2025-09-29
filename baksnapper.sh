@@ -403,9 +403,13 @@ fi
 #### Deprecated config way of setup ############################################
 if [[ -n $p_config ]]
 then
-    [[ -z "$1" ]] && error "No path specified!"
+    if [[ $# -ge 1 ]]
+    then
+        p_dest=$1
+    fi
 
-    p_dest=${p_dest-$1}
+    [[ -z $p_dest ]] && error "No path specified!"
+
     regex='(.*?):(.*)'
     if [[ $p_dest =~ $regex ]]
     then
