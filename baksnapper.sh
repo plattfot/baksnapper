@@ -10,7 +10,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 read -rd '' help <<EOF
-Usage: $0 [OPTIONS...] [ADDRESS_SRC:]SOURCE [ADDRESS_DST:]DEST
+Usage: $0 [OPTIONS...] [--source] [ADDRESS_SRC:]SOURCE [--dest] [ADDRESS_DST:]DEST
        $0 --config NAME [OPTIONS...] [ADDRESS:]PATH
 
 Backup snapper snapshot from SOURCE to DEST using btrfs incremental
@@ -26,6 +26,12 @@ Options:
                   is to only send the last one.
 
 --config NAME     Name of config.
+
+--source SOURCE   Source path, sets the same as positional SOURCE.
+                  Useful if setting DEST in config file.
+
+--dest DEST       Destination path, sets the same as positional DEST.
+                  Useful if setting SOURCE in config file.
 
 --configfile NAME Name of config file to use.
 
@@ -257,6 +263,8 @@ if ! _args=$(getopt --name "baksnapper" \
              --options "adhvp" \
              --long config: \
              --long configfile: \
+             --long source: \
+             --long dest: \
              --long delete: \
              --long daemon: \
              --long private-key: \
@@ -313,6 +321,14 @@ case $key in
         ;;
     --configfile)
         read-config "$2"
+        shift 2
+        ;;
+    --source)
+        p_src=$2
+        shift 2
+        ;;
+    --dest)
+        p_dest=$2
         shift 2
         ;;
     --daemon)
