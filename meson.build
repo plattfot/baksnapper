@@ -85,11 +85,9 @@ runner = find_program('./tests/runner.scm')
 
 test_configuration = {
   'default': {
-    'CONFIG': 'root',
     'DAEMON': baksnapperd[0].full_path(),
   },
   'latest': {
-    'CONFIG': 'root',
     'DAEMON': baksnapperd[0].full_path(),
     'PRUNE': 'NO',
     'ALL': 'NO',
@@ -97,14 +95,12 @@ test_configuration = {
     'LINK': 'YES',
   },
   'prune': {
-    'CONFIG': 'home',
     'DAEMON': baksnapperd[0].full_path(),
     'PRUNE': 'YES',
     'ALL': 'NO',
     'VERBOSE': 'NO',
   },
   'all': {
-    'CONFIG': 'root',
     'DAEMON': baksnapperd[0].full_path(),
     'ALL': 'YES',
     'VERBOSE': 'NO',
@@ -126,6 +122,36 @@ foreach conf: [
   {
     'suffix': '-configfile',
     'runner-args': [],
+    'baksnapper-args': [],
+    'configfile': true,
+  },
+  {
+    'suffix': '-configfile-path',
+    'runner-args': ['--path-config'],
+    'baksnapper-args': [],
+    'configfile': true,
+  },
+  {
+    'suffix': '-configfile-src-dest',
+    'runner-args': ['--src-dest'],
+    'baksnapper-args': [],
+    'configfile': true,
+  },
+  {
+    'suffix': '-configfile-src',
+    'runner-args': ['--src-dest', '--src-config'],
+    'baksnapper-args': [],
+    'configfile': true,
+  },
+  {
+    'suffix': '-configfile-dest',
+    'runner-args': ['--src-dest', '--dest-config'],
+    'baksnapper-args': [],
+    'configfile': true,
+  },
+  {
+    'suffix': '-configfile-both',
+    'runner-args': ['--src-dest', '--src-config', '--dest-config'],
     'baksnapper-args': [],
     'configfile': true,
   },
@@ -172,7 +198,7 @@ foreach conf: [
         '--prune',
       ],
       'configfile': 'prune',
-      'configfile-baksnapper-args': ['--config', 'root'],
+      'configfile-baksnapper-args': [],
     },
     {
       'name': 'backup-2',
@@ -287,28 +313,31 @@ foreach conf: [
                    '--dest-private-key', 'bar.key'],
         },
       ]
+        runner_args = []
         baksnapper_args = []
         test_depends = []
         if conf['configfile']
           test_config = custom_target(
             input: configure_file(
-              output: test_entry['name'] + ssh['suffix'] + ssh_key['suffix'] + '.bsconf.meson',
+              output: test_entry['name'] + ssh['suffix'] + ssh_key['suffix'] +
+                      conf['suffix'] + '.bsconf.meson',
               configuration: test_configuration[test_entry['configfile']]
             ),
-            output: test_entry['name'] + ssh['suffix'] + ssh_key['suffix'] + '.bsconf',
+            output: test_entry['name'] + ssh['suffix'] + ssh_key['suffix'] +
+                    conf['suffix'] + '.bsconf',
             command: [find_program('tests/bin/config-to-bsconf'), '@INPUT@'],
             capture: true,
           )
-          baksnapper_args = [
-            '--configfile', test_config.full_path()
-          ] + test_entry['configfile-baksnapper-args']
-          test_depends = [test_config]
+          runner_args += ['--configfile', test_config.full_path()]
+          baksnapper_args += test_entry['configfile-baksnapper-args']
+          test_depends += [test_config]
         endif
         test(
           test_entry['name']+conf['suffix']+ssh['suffix']+ssh_key['suffix'],
           runner,
           env: test_env,
-          args: test_entry['runner-args'] + conf['runner-args'] + ssh['args'] +
+          args: test_entry['runner-args'] + conf['runner-args'] +
+                ssh['args'] + runner_args +
                 ['--'] +
                 test_entry['baksnapper-args'] + conf['baksnapper-args'] +
                 ssh_key['args'] + baksnapper_args,
