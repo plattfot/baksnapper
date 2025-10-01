@@ -70,19 +70,53 @@ release.
 - [ ] Run as none root user.
 
 ## Usage
+First set up snapper to take snapshots of one of your subvolumes, see this [page](https://wiki.archlinux.org/index.php/Snapper) on how to do it for Arch Linux.
 
-First set up snapper to take snapshots of one of your subvolumes, see
-this [page](https://wiki.archlinux.org/index.php/Snapper) on how to do
-it for Arch Linux.
+### Specify source and destination
 
-For example if you want to back up you snapshots from your home
-subvolumes to an external hdd mounted at /mnt/backup, run
+If you want to back up your snapper snapshots for your home configuration, where the snapshots located in `/home/.snapshots`, to an external hdd mounted at `/mmt/backup`.
+
+```bash
+$ baksnapper /home/.snapshots /mnt/backup/home
+```
+
+This will send the last snapshot of home to `/mnt/backup/home/<snapshot nr>'.
+
+To backup all snapshots run:
+```bash
+$ baksnapper /home/.snapshots --all /mnt/backup/home
+```
+
+This will mirror what is in `/home/.snapshots` to `/mnt/backup/home`.
+
+To remove backups that snapper has discarded add the flag -p/--prune:
+```bash
+$ baksnapper /home/.snapshots --all --prune /mnt/backup/home
+```
+
+To delete specific backups from the backup directory, run:
+```bash
+$ baksnapper /home/.snapshots /mnt/backup/home --delete 1,2,3,63
+```
+
+This will only delete 1,2,3 and 63 if they only contain a info.xml
+file and a snapshot dir. Otherwise it will issue a warning and skip
+the directory.
+
+For help use the `-h`/`--help` flag
+```bash
+$ baksnapper --help
+```
+### Snapper config interface (deprecated)
+
+For example if you want to back up your snapshots from your home
+snapshots to an external hdd mounted at /mnt/backup, run
 
 ```bash
 $ baksnapper -c home /mnt/backup
 ```
 
-This will send the last snapshots of home to
+This will send the last snapshot of home to
 /mnt/backup/home/<snapshot nr>
 
 To backup all snapshots run:
@@ -110,10 +144,10 @@ For help use the -h/--help flag
 ```bash
 $ baksnapper --help
 ```
-## Remote backup over ssh
+### Remote backup over ssh
 
 In order to be able to backup to a remote location you first need to
-install baksnapper on the remote machine, or atleast copy over the
+install baksnapper on the remote machine, or at least copy over the
 baksnapperd script.
 
 Next up is to create a ssh key that baksnapper can use to access the
@@ -153,25 +187,62 @@ It should print out "Connection works".
 
 If everything is working you can now use remote backup with
 baksnapper.  It uses the same syntax as scp,
-i.e. <address>:<path>. For example backup to machine named foo:
+i.e. <address>:<path>. For example backup to machine named foo.example.com:
 
 ```bash
-$ baksnapper --config home --all foo:/mnt/backup
+$ baksnapper /home/.snapshots --all foo.example.com:/mnt/backup/home
+```
+
+And for the deprecated snapper config interface:
+
+```bash
+$ baksnapper --config home --all foo.example.com:/mnt/backup
 ```
 
 **Tip:** If your are using a nonstandard ssh port you can specify it
 in the .ssh/config, for example
 ```bash
-Host foo
+Host foo.example.com
 Port 666
 ```
 
 **Tip:** If you have multiple keys, you can specify what key
-baksnapper should use either with the option
+baksnapper should use either with the option:
+
 ```bash
-$ baksnapper config home --all foo:/mnt/backup --private-key /root/.ssh/<BAKSNAPPERD-PRIVATE-KEY>
+$ baksnapper /home/.snapshots  --all foo.example.com:/mnt/backup/home --dest-private-key /root/.ssh/<BAKSNAPPERD-PRIVATE-KEY>
 ```
-Or specify that in the Config file using PRIVATE_KEY.
+
+And for the deprecated snapper config interface:
+```bash
+$ baksnapper --config home --all foo.example.com:/mnt/backup --private-key /root/.ssh/<BAKSNAPPERD-PRIVATE-KEY>
+```
+
+Or specify that in the Config file using `DEST_PRIVATE_KEY` or `PRIVATE_KEY` for the deprecated snapper config interface.
+
+#### Backup from a remote machine over ssh
+
+You can also pull snapshots from a remote machine to a local location using
+
+```bash
+$ baksnapper foo.example.com:/home/.snapshots /mnt/backup/home
+```
+
+And you can specify the private key using `--src-private-key` similar to what you do with `--dest-private-key`.
+
+The deprecated snapper config interface you can do the same but it is not as intuitive:
+
+```bash
+$ baksnapper --config home foo.example.com:/mnt/backup --type=pull
+```
+
+Note that `/mnt/backup` is on the local machine, and `--config home` is for `foo.example.com` — There is a reason why this interface is deprecated.
+
+There is also possible to pull backups from one remote machine and send them to another remote machine:
+
+```bash
+$ baksnapper foo.example.com:/home/.snapshots bar.example.com:/mnt/backup/home
+```
 
 ## Config file
 
@@ -188,17 +259,19 @@ For boolean parameters YES, yes, yes and 1 are interpret as on/true and
 anything else as off/false.
 
 The supported options are:
-* CONFIG: The snapper config to backup. Same as --config.
-* PATH: Destination to backup to. For remote backup use
+* CONFIG (deprecated): The snapper config to backup. Same as --config. (deprecated)
+* PATH (deprecated): Destination to backup to. For remote backup use
         hostname:/backup/to. Where 'hostname' is the name of the
         server and '/backup/to' is the path to the location it should
         write the backups to on the remote host.
+* SOURCE: Source of the snapshots directory to backup.  Same as first positional argument and `--source`.  For remote backup use `[user@]hostname:/backup/from`.  Where `user` is the username — it is optional and if left out till will use the current user.  And `hostname` is the name of the server and `/backup/from` is the path to the location where the snapshots are located.
+* DEST: Destination for the backup.  Same as second positional argument and `--dest`.  For remote backup use `[user@]hostname:/backup/to`.  Where `user` is the username — it is optional and if left out till will use the current user.  And `hostname` is the name of the server and `/backup/to` is the path to the location where it should write the backups to on the remote host.
 * PRUNE: Prune the backups by deleting snapshots that isn't in the source directory.
        Same as -p, --prune
 * ALL: Send all snapshots in the soruce directory. Same as -a, --all
 * VERBOSE: Verbose print out, same as -v, --verbose.
 * DAEMON: Name of the baksnapper daemon, default is baksnapperd. Same as --daemon
-* TYPE: Define if it should push the backup or pull. Default is push.
+* TYPE (deprecated): Define if it should push the backup or pull. Default is push.
   	Pull can be used to transfer a backup from a remote server to
   	the current machine.
 * PRIVATE_KEY: The private key file to use when connecting to a remote
@@ -206,8 +279,8 @@ The supported options are:
 
 **Note:** Command line options will take precendence over config file options.
 **Note:** No variable expansion is supported in the config files, for
-example you cannot for example type ~/backup, instead you need to
-expand ~ yourself i.e /home/bob/backup if $USER = bob.
+example you cannot for example type `~/backup`, instead you need to
+expand ~ yourself i.e /home/bob/backup if `$USER` expands to `bob`.
 
 ## Systemd
 
