@@ -77,162 +77,296 @@ test(
 
 test_env = environment()
 test_env.prepend('PATH', meson.current_source_dir() / 'tests/bin')
+test_env.set('MOCK_SSH_CONNECTION', '0')
+test_env.set('MOCK_SSH_KEY', 'foo.key=foo.example.com:bar.key=bar.example.com')
+test_env.set('MOCK_SSH_BAKSNAPPERD', baksnapperd[0].full_path())
+
 runner = find_program('./tests/runner.scm')
 
+test_configuration = {
+  'default': {
+    'DAEMON': baksnapperd[0].full_path(),
+  },
+  'latest': {
+    'DAEMON': baksnapperd[0].full_path(),
+    'PRUNE': 'NO',
+    'ALL': 'NO',
+    'VERBOSE': 'NO',
+    'LINK': 'YES',
+  },
+  'prune': {
+    'DAEMON': baksnapperd[0].full_path(),
+    'PRUNE': 'YES',
+    'ALL': 'NO',
+    'VERBOSE': 'NO',
+  },
+  'all': {
+    'DAEMON': baksnapperd[0].full_path(),
+    'ALL': 'YES',
+    'VERBOSE': 'NO',
+  },
+}
+foreach conf: [
+  {
+    'suffix': '-config',
+    'runner-args': [],
+    'baksnapper-args': ['--config', 'root'],
+    'configfile': false,
+  },
+  {
+    'suffix': '-src-dest',
+    'runner-args': ['--src-dest'],
+    'baksnapper-args': [],
+    'configfile': false,
+  },
+  {
+    'suffix': '-configfile',
+    'runner-args': [],
+    'baksnapper-args': [],
+    'configfile': true,
+  },
+  {
+    'suffix': '-configfile-path',
+    'runner-args': ['--path-config'],
+    'baksnapper-args': [],
+    'configfile': true,
+  },
+  {
+    'suffix': '-configfile-src-dest',
+    'runner-args': ['--src-dest'],
+    'baksnapper-args': [],
+    'configfile': true,
+  },
+  {
+    'suffix': '-configfile-src',
+    'runner-args': ['--src-dest', '--src-config'],
+    'baksnapper-args': [],
+    'configfile': true,
+  },
+  {
+    'suffix': '-configfile-dest',
+    'runner-args': ['--src-dest', '--dest-config'],
+    'baksnapper-args': [],
+    'configfile': true,
+  },
+  {
+    'suffix': '-configfile-both',
+    'runner-args': ['--src-dest', '--src-config', '--dest-config'],
+    'baksnapper-args': [],
+    'configfile': true,
+  },
+]
+  foreach test_entry: [
+    {
+      'name': 'default',
+      'runner-args': [
+        '--sender', '1,2,3',
+        '--expected', '3',
+      ],
+      'baksnapper-args': [
+        baksnapper[0].full_path(),
+        '--daemon', baksnapperd[0].full_path(),
+      ],
+      'configfile': 'default',
+      'configfile-baksnapper-args': [],
+    },
+    {
+      'name': 'latest',
+      'runner-args': [
+        '--sender', '1,2,3',
+        '--expected', '3',
+        '--expected-latest', '3',
+      ],
+      'baksnapper-args': [
+        baksnapper[0].full_path(),
+        '--daemon', baksnapperd[0].full_path(),
+        '--link',
+      ],
+      'configfile': 'latest',
+      'configfile-baksnapper-args': [],
+    },
+    {
+      'name': 'prune',
+      'runner-args': [
+        '--sender', '1,2,3,6,7,8',
+        '--receiver', '1,2,3,4,5,6',
+        '--expected', '1,2,3,6,8:p=6',
+      ],
+      'baksnapper-args': [
+        baksnapper[0].full_path(),
+        '--daemon', baksnapperd[0].full_path(),
+        '--prune',
+      ],
+      'configfile': 'prune',
+      'configfile-baksnapper-args': [],
+    },
+    {
+      'name': 'backup-2',
+      'runner-args': [
+        '--sender', '1,2,3',
+        '--expected', '2',
+      ],
+      'baksnapper-args': [
+        baksnapper[0].full_path(),
+        '--daemon', baksnapperd[0].full_path(),
+        '--snapshot', '2',
+      ],
+      'configfile': 'default',
+      'configfile-baksnapper-args': [],
+    },
+    {
+      'name': 'delete-1',
+      'runner-args': [
+        '--sender', '1,2,3',
+        '--receiver', '1,2,3',
+        '--expected', '2,3',
+      ],
+      'baksnapper-args': [
+        baksnapper[0].full_path(),
+        '--daemon', baksnapperd[0].full_path(),
+        '--delete', '1',
+      ],
+      'configfile': 'default',
+      'configfile-baksnapper-args': [],
+    },
+    {
+      'name': 'delete-1,3',
+      'runner-args': [
+        '--sender', '1,2,3',
+        '--receiver', '1,2,3',
+        '--expected', '2',
+      ],
+      'baksnapper-args': [
+        baksnapper[0].full_path(),
+        '--daemon', baksnapperd[0].full_path(),
+        '--delete', '1,3',
+      ],
+      'configfile': 'default',
+      'configfile-baksnapper-args': [],
+    },
+    {
+      'name': 'backup-with-right-parent',
+      'runner-args': [
+        '--sender', '64,65,76,83,91,92,93',
+        '--receiver', '64,66:p=64,76:p=66,83:p=76,91:p=83,92:p=83',
+        '--expected', '64,66:p=64,76:p=66,83:p=76,91:p=83,92:p=83,93:p=92',
+      ],
+      'baksnapper-args': [
+        baksnapper[0].full_path(),
+        '--daemon', baksnapperd[0].full_path(),
+      ],
+      'configfile': 'default',
+      'configfile-baksnapper-args': [],
+    },
+    # https://github.com/plattfot/baksnapper/issues/27
+    {
+      'name': 'backup-all-with-right-parent',
+      'runner-args': [
+        '--sender', '64,65,76,83,91,92,93',
+        '--receiver', '64,66:p=64,76:p=66,83:p=76,91:p=83,92:p=83',
+        '--expected', '64,65:p=64,66:p=64,76:p=66,83:p=76,91:p=83,92:p=83,93:p=92',
+      ],
+      'baksnapper-args': [
+        baksnapper[0].full_path(),
+        '--daemon', baksnapperd[0].full_path(),
+        '--all',
+      ],
+      'configfile': 'all',
+      'configfile-baksnapper-args': [],
+    }
+  ]
+    foreach ssh: [
+      {
+        'suffix': '',
+        'args': [],
+      },
+      {
+        'suffix': '-ssh-src',
+        'args': ['--src-ssh', 'foo.example.com'],
+      },
+      {
+        'suffix': '-ssh-dest',
+        'args': ['--dest-ssh', 'bar.example.com'],
+      },
+      {
+        'suffix': '-ssh-both',
+        'args': ['--src-ssh', 'foo.example.com',
+                 '--dest-ssh', 'bar.example.com'],
+      },
+    ]
+      foreach ssh_key: [
+        {
+          'suffix': '',
+          'args': [],
+        },
+        {
+          'suffix': '-key-src',
+          'args': ['--src-private-key', 'foo.key'],
+        },
+        {
+          'suffix': '-key-dest',
+          'args': ['--dest-private-key', 'bar.key'],
+        },
+        {
+          'suffix': '-key-both',
+          'args': ['--src-private-key', 'foo.key',
+                   '--dest-private-key', 'bar.key'],
+        },
+      ]
+        runner_args = []
+        baksnapper_args = []
+        test_depends = []
+        if conf['configfile']
+          test_config = custom_target(
+            input: configure_file(
+              output: test_entry['name'] + ssh['suffix'] + ssh_key['suffix'] +
+                      conf['suffix'] + '.bsconf.meson',
+              configuration: test_configuration[test_entry['configfile']]
+            ),
+            output: test_entry['name'] + ssh['suffix'] + ssh_key['suffix'] +
+                    conf['suffix'] + '.bsconf',
+            command: [find_program('tests/bin/config-to-bsconf'), '@INPUT@'],
+            capture: true,
+          )
+          runner_args += ['--configfile', test_config.full_path()]
+          baksnapper_args += test_entry['configfile-baksnapper-args']
+          test_depends += [test_config]
+        endif
+        test(
+          test_entry['name']+conf['suffix']+ssh['suffix']+ssh_key['suffix'],
+          runner,
+          env: test_env,
+          args: test_entry['runner-args'] + conf['runner-args'] +
+                ssh['args'] + runner_args +
+                ['--'] +
+                test_entry['baksnapper-args'] + conf['baksnapper-args'] +
+                ssh_key['args'] + baksnapper_args,
+          depends: [
+            baksnapper,
+            baksnapperd,
+          ] + test_depends,
+        )
+      endforeach
+    endforeach
+  endforeach
+endforeach
 test(
-  'default',
-  runner,
+  'not-enough-inputs',
+  baksnapper[0],
   env: test_env,
-  args: [
-    '--sender', '1,2,3',
-    '--expected', '3',
-    '--',
-    baksnapper[0].full_path(),
-    '--config', 'root',
-    '--daemon', baksnapperd[0].full_path(),
-  ],
   depends: [
     baksnapper,
-    baksnapperd,
   ],
+  should_fail: true,
 )
 
 test(
-  'latest',
-  runner,
+  'not-enough-inputs-src-dest',
+  baksnapper[0],
+  args: ['.'],
   env: test_env,
-  args: [
-    '--sender', '1,2,3',
-    '--expected', '3',
-    '--expected-latest', '3',
-    '--',
-    baksnapper[0].full_path(),
-    '--config', 'root',
-    '--daemon', baksnapperd[0].full_path(),
-    '--link',
-  ],
   depends: [
     baksnapper,
-    baksnapperd,
   ],
-)
-
-
-test(
-  'backup-2',
-  runner,
-  env: test_env,
-  args: [
-    '--sender', '1,2,3',
-    '--expected', '2',
-    '--',
-    baksnapper[0].full_path(),
-    '--config', 'root',
-    '--daemon', baksnapperd[0].full_path(),
-    '--snapshot', '2',
-  ],
-  depends: [
-    baksnapper,
-    baksnapperd,
-  ],
-)
-
-test(
-  'prune',
-  runner,
-  env: test_env,
-  args: [
-    '--sender', '1,2,3,6,7,8',
-    '--receiver', '1,2,3,4,5,6',
-    '--expected', '1,2,3,6,8:p=6',
-    '--',
-    baksnapper[0].full_path(),
-    '--config', 'root',
-    '--daemon', baksnapperd[0].full_path(),
-    '--prune',
-  ],
-  depends: [
-    baksnapper,
-    baksnapperd,
-  ],
-)
-
-test(
-  'delete-1',
-  runner,
-  env: test_env,
-  args: [
-    '--sender', '1,2,3',
-    '--receiver', '1,2,3',
-    '--expected', '2,3',
-    '--',
-    baksnapper[0].full_path(),
-    '--config', 'root',
-    '--daemon', baksnapperd[0].full_path(),
-    '--delete', '1',
-  ],
-  depends: [
-    baksnapper,
-    baksnapperd,
-  ],
-)
-
-test(
-  'delete-1,3',
-  runner,
-  env: test_env,
-  args: [
-    '--sender', '1,2,3',
-    '--receiver', '1,2,3',
-    '--expected', '2',
-    '--',
-    baksnapper[0].full_path(),
-    '--config', 'root',
-    '--daemon', baksnapperd[0].full_path(),
-    '--delete', '1,3',
-  ],
-  depends: [
-    baksnapper,
-    baksnapperd,
-  ],
-)
-
-# https://github.com/plattfot/baksnapper/issues/27
-test(
-  'backup-all-with-right-parent',
-  runner,
-  env: test_env,
-  args: [
-    '--sender', '64,65,76,83,91,92,93',
-    '--receiver', '64,66:p=64,76:p=66,83:p=76,91:p=83,92:p=83',
-    '--expected', '64,65:p=64,66:p=64,76:p=66,83:p=76,91:p=83,92:p=83,93:p=92',
-    '--',
-    baksnapper[0].full_path(),
-    '--config', 'root',
-    '--daemon', baksnapperd[0].full_path(),
-    '--all',
-  ],
-  depends: [
-    baksnapper,
-    baksnapperd,
-  ],
-)
-
-test(
-  'backup-with-right-parent',
-  runner,
-  env: test_env,
-  args: [
-    '--sender', '64,65,76,83,91,92,93',
-    '--receiver', '64,66:p=64,76:p=66,83:p=76,91:p=83,92:p=83',
-    '--expected', '64,66:p=64,76:p=66,83:p=76,91:p=83,92:p=83,93:p=92',
-    '--',
-    baksnapper[0].full_path(),
-    '--config', 'root',
-    '--daemon', baksnapperd[0].full_path(),
-  ],
-  depends: [
-    baksnapper,
-    baksnapperd,
-  ],
+  should_fail: true,
 )

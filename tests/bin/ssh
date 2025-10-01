@@ -1,0 +1,101 @@
+#! /usr/bin/env bash
+
+# Mock of the ssh binary for testing
+
+# SPDX-FileCopyrightText: 2025  Fredrik Salomonsson <plattfot@posteo.net>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+read -rd '' help <<EOF
+Usage: ssh [OPTION]... ADDRESS COMMAND
+
+Mock variant of the ssh binary for testing
+
+Options:
+  -q      Return code based on MOCK_SSH_CONNECTION, 1 if not set.
+  -i KEY  Failure if KEY=ADDRESS does not exit in MOCK_SSH_KEY.
+
+Environment:
+  MOCK_SSH_CONNECTION   Return code for the -q option
+  MOCK_SSH_BAKSNAPPERD  Path to baksnapperd
+  MOCK_SSH_KEY          KEY0=ADDRESS0[:KEY1=ADDRESS1]...
+
+Author:
+Fredrik "PlaTFooT" Salomonsson
+EOF
+# Use getopt to parse the command-line arguments
+if ! _args=$(getopt --name ssh \
+                    --options "i:q" \
+                    --long "help" \
+                    -- "$@")
+then
+    echo "Try '$0 --help for more information.'" >&2
+    exit 1
+fi
+
+eval set -- "$_args"
+# Parse options
+while [[ $# -gt 0 ]]
+do
+    key=$1
+    case $key in
+        -q)
+            test_connection=1
+            shift 1
+            ;;
+        -i)
+            ssh_key=$2
+            shift 2
+            ;;
+        -h|--help)
+            echo -e "$help"
+            exit 0
+            ;;
+        --)
+            shift
+            break
+            ;;
+    esac
+done
+
+if [[ -n "$test_connection" ]]
+then
+    exit "${MOCK_SSH_CONNECTION-1}"
+fi
+
+if [[ $# -lt 1 ]]
+then
+    echo "no address given" 1>&2
+    exit 1
+fi
+
+if [[ -n "$ssh_key" ]]
+then
+    mapfile -td ':' key_pairs <<< "$MOCK_SSH_KEY"
+    declare -A keys
+    for key_value in "${key_pairs[@]}"
+    do
+        mapfile -td '=' pair <<< "$key_value"
+        keys[${pair[0]}]=${pair[1]}
+    done
+    if [[ -z "${keys[$ssh_key]}" ]]
+    then
+        echo "ssh key '$ssh_key' does not exit" 1>&2
+        exit 1
+    fi
+fi
+
+if [[ $# -lt 2 ]]
+then
+    echo "no command given" 1>&2
+    exit 1
+fi
+shift 1
+
+if [[ -z "$MOCK_SSH_BAKSNAPPERD" ]]
+then
+    echo "MOCK_SSH_BAKSNAPPERD not set" 1>&2
+    exit 1
+fi
+
+$MOCK_SSH_BAKSNAPPERD "$@"

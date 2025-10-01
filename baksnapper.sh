@@ -10,10 +10,15 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 read -rd '' help <<EOF
-Usage: $0 [OPTIONS...] [ADDRESS:]PATH
+Usage: $0 [OPTIONS...] [--source] [ADDRESS_SRC:]SOURCE [--dest] [ADDRESS_DST:]DEST
+       $0 --config NAME [OPTIONS...] [ADDRESS:]PATH
 
-Backup snapper snapshot to PATH using btrfs incremental send and
-receive. ADDRESS is specified for remote backups.
+Backup snapper snapshot from SOURCE to DEST using btrfs incremental
+send and receive. ADDRESS_SRC/_DST are specified for remote backups.
+
+Deprecated usage is to use --config NAME for the location of the
+snapper config and PATH for a directory containing snapper snapshots.
+Then control direction using --type TYPE.
 
 Options:
 
@@ -22,10 +27,22 @@ Options:
 
 --config NAME     Name of config.
 
+--source SOURCE   Source path, sets the same as positional SOURCE.
+                  Useful if setting DEST in config file.
+
+--dest DEST       Destination path, sets the same as positional DEST.
+                  Useful if setting SOURCE in config file.
+
 --configfile NAME Name of config file to use.
 
 --private-key KEY Specify the private KEY file to use when connecting
                   to a remote backup location.
+
+--src-private-key KEY  Specify the private KEY file to use when
+                  connecting to the remote source location.
+
+--dest-private-key KEY  Specify the private KEY file to use when
+                  connecting to the remote destination location.
 
 -p, --prune       Prune the backups by deleting snapshots that isn't
                   in the source directory.
@@ -56,7 +73,31 @@ Options:
 
 --version         Print version and then exit
 
-Example:
+Examples:
+
+1)
+$0 /.snapshots/ /mnt/backup/root
+Backup the last root snapshot to /mnt/backup/root, if it is the first
+time it will send the whole snapshot otherwise it will just send what
+have changed.
+
+2)
+$0 --delete 1,2,3,4 /.snapshots /mnt/backup/root
+Delete the root's snapshots 1,2,3 and 4 for from /mnt/backup/root,
+will output a warning if a snapshot doesn't exist.
+
+3)
+$0 /.snapshots foo:/mnt/backup/root
+Same as example 1 except it will send the backups to the remote
+machine named foo.
+
+4)
+$0 bar:/.snapshots /mnt/backup
+Pull snapshots from remote machine bar at location /.snaphosts to
+/mnt/backup/root.  Similar behavior as 1 and 3 for how snapshots are
+transfered.
+
+Deprecated examples:
 
 1)
 $0 --config root /mnt/backup
@@ -65,7 +106,7 @@ it will send the whole snapshot otherwise it will just send what have
 changed.
 
 2)
-$0 --delete 1,2,3,4 -c root /mnt/backup
+$0 --delete 1,2,3,4 --config root /mnt/backup
 Delete the root's snapshots 1,2,3 and 4 for from /mnt/backup, will
 output a warning if a snapshot doesn't exist.
 
@@ -94,6 +135,8 @@ This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.
 EOF
 
+shopt -s extglob
+
 function cleanup {
     exec 4>&-
     rm -rf "${p_temp_dir}"
@@ -101,7 +144,7 @@ function cleanup {
 
 function exit-msg {
     cleanup
-    notify-send -u critical "Done backing up $p_config. Safe to turn off computer."
+    notify-send -u critical "Done backing up $src_root. Safe to turn off computer."
 }
 
 
@@ -114,74 +157,99 @@ function warning {
     echo -e "[Warning] $1" 1>&2
 }
 
-
-function parse-full-path {
-    if [[ $1 =~ \(.*?\):\(.*\) ]]
-    then
-        p_ssh_address=${BASH_REMATCH[1]}
-        ssh=${ssh-"ssh $p_ssh_address"}
-        p_dest=${BASH_REMATCH[2]}
-    else
-        p_dest=${p_dest-"$1"}
-    fi
-}
-
 function read-config {
 
+    # Get value from line
+    # 1 [out]: output variable
+    # 2 [in]: line to parse value from
     function get-value {
-        _value=$(echo "$1" | sed -Ee 's/^[A-Z_ ]+=[ ]*(.*?)/\1/' -e 's/#.*//')
+        declare -n out=$1
+        out=$(echo "$2" | sed -Ee 's/^[A-Z_ ]+=[ ]*(.*?)/\1/' -e 's/#.*//')
     }
 
+    # Only get value from line if output is unset
+    # 1 [out]: output variable
+    # 2 [in]: line to parse value from
+    function get-value-if-not-set {
+        declare -n out=$1
+        local value
+        get-value value "$2"
+        out=${out-$value}
+    }
+
+    # Parse value as boolean
+    # 1 [out]: output variable
+    # 2 [ini: value to interpret as boolean
     function parse-bool {
-        if [[ "$1" =~ YES|yes|Yes|1 ]]
+        declare -n out=$1
+        if [[ "$2" =~ YES|yes|Yes|1 ]]
         then
-            _bool=1
+            out=1
         else
-            _bool=0
+            out=0
         fi
+    }
+
+    # Only get boolean from line if output is unset
+    # 1 [out]: output variable
+    # 2 [in]: line to parse as bool
+    function get-bool-if-not-set {
+        declare -n out=$1
+        local value
+        get-value value "$2"
+        local bool
+        parse-bool bool "$value"
+        out=${out-$bool}
     }
 
     while read -r line; do
         case $line in
             CONFIG*=*)
-                get-value "$line"
-                p_config=${p_config-"$_value"}
+                get-value-if-not-set p_config "$line"
+                warning "CONFIG is deprecated, use SOURCE/DEST."
             ;;
             PATH*=*)
-                get-value "$line"
-                parse-full-path "$_value"
+                get-value-if-not-set p_dest "$line"
+                warning "PATH is deprecated, use SOURCE/DEST."
+            ;;
+            (SOURCE*([[:blank:]])=*)
+                get-value-if-not-set p_src "$line"
+            ;;
+            (DEST*([[:blank:]])=*)
+                get-value-if-not-set p_dest "$line"
             ;;
             DAEMON*=*)
-                get-value "$line"
-                p_baksnapperd=${p_baksnapperd-$_value}
+                get-value-if-not-set p_baksnapperd "$line"
                 ;;
             PRUNE*=*)
-                get-value "$line"
-                parse-bool "$_value"
-                p_prune=${p_prune-$_bool}
+                get-bool-if-not-set p_prune "$line"
                 ;;
             ALL*=*)
-                get-value "$line"
-                parse-bool "$_value"
-                p_all=${p_all-$_bool}
+                get-bool-if-not-set p_all "$line"
                 ;;
             VERBOSE*=*)
-                get-value "$line"
-                parse-bool "$_value"
-                p_verbose=${p_verbose-$_bool}
+                get-bool-if-not-set p_verbose "$line"
                 ;;
             LINK*=*)
-                get-value "$line"
-                parse-bool "$_value"
-                p_link=${p_link-$_bool}
+                get-bool-if-not-set p_link "$line"
                 ;;
             TYPE*=*)
-                get-value "$line"
-                p_type=${p_type-$_value}
+                get-value-if-not-set p_type "$line"
+                warning "TYPE is deprecated, use SOURCE/DEST."
                 ;;
-            PRIVATE_KEY*=*)
-                get-value "$line"
-                p_ssh_args=${p_ssh_args-" -i $_value"}
+            (PRIVATE_KEY*([[:blank:]])=*)
+                get-value value "$line"
+                p_ssh_args=${p_ssh_args-" -i $value"}
+                p_src_ssh_args=${p_src_ssh_args-" -i $value"}
+                p_dest_ssh_args=${p_dest_ssh_args-" -i $value"}
+                ;;
+            (SOURCE_PRIVATE_KEY*([[:blank:]])=*)
+                get-value value "$line"
+                p_src_ssh_args=${p_src_ssh_args-" -i $value"}
+                ;;
+            (DEST_PRIVATE_KEY*([[:blank:]])=*)
+                get-value value "$line"
+                p_dest_ssh_args=${p_dest_ssh_args-" -i $value"}
                 ;;
             *)
                 ;;
@@ -195,9 +263,13 @@ if ! _args=$(getopt --name "baksnapper" \
              --options "adhvp" \
              --long config: \
              --long configfile: \
+             --long source: \
+             --long dest: \
              --long delete: \
              --long daemon: \
              --long private-key: \
+             --long src-private-key: \
+             --long dest-private-key: \
              --long snapshot: \
              --long type: \
              --long all \
@@ -244,10 +316,19 @@ case $key in
         ;;
     --config)
         p_config="$2"
+        warning "--config is deprecated, use position arguments SOURCE DEST."
         shift 2
         ;;
     --configfile)
         read-config "$2"
+        shift 2
+        ;;
+    --source)
+        p_src=$2
+        shift 2
+        ;;
+    --dest)
+        p_dest=$2
         shift 2
         ;;
     --daemon)
@@ -260,6 +341,16 @@ case $key in
         ;;
     --private-key)
         p_ssh_args=" -i $2"
+        p_dest_ssh_args=("-i" "$2")
+        p_src_ssh_args=("-i" "$2")
+        shift 2
+        ;;
+    --src-private-key)
+        p_src_ssh_args=("-i" "$2")
+        shift 2
+        ;;
+    --dest-private-key)
+        p_dest_ssh_args=("-i" "$2")
         shift 2
         ;;
     -p|--prune)
@@ -273,6 +364,7 @@ case $key in
     --type)
         p_type=$2
         shift 2
+        warning "--type is deprecated, use position arguments SOURCE DEST."
         ;;
     --link)
         p_link=1
@@ -294,48 +386,158 @@ esac
 done
 
 ## Setup #######################################################################
-while [[ $# -gt 0 ]]
-do
-    case $1 in
-        *)
-            parse-full-path "$1"
-            shift
-            break
-            ;;
-    esac
-done
-
-
 if [[ $p_verbose == 1 ]]
 then
     set -x
 fi
 
-
 p_baksnapperd=${p_baksnapperd=baksnapperd}
 p_all=${p_all=0}
 
-# Error checks
-#[[ $USER != root ]] && error "Need to be root to run this script!"
-[[ -z $p_config ]] && error "You need to specify the config name to backup!"
-[[ -z $p_dest ]] && error "No path specified!"
-
-
-regex='(.*?):(.*)'
-if [[ $p_dest =~ $regex ]]
+if [[ $# -ge 2 ]]
 then
-    address="${BASH_REMATCH[1]}"
-    ssh="ssh $p_ssh_args $address"
-    dest="${BASH_REMATCH[2]}"
+    p_src=$1
+    p_dest=$2
+fi
+
+#### Deprecated config way of setup ############################################
+if [[ -n $p_config ]]
+then
+    if [[ $# -ge 1 ]]
+    then
+        p_dest=$1
+    fi
+
+    [[ -z $p_dest ]] && error "No path specified!"
+
+    regex='(.*?):(.*)'
+    if [[ $p_dest =~ $regex ]]
+    then
+        address="${BASH_REMATCH[1]}"
+        ssh="ssh $p_ssh_args $address"
+        dest="${BASH_REMATCH[2]}"
+    else
+        dest=$p_dest
+    fi
+
+    if [[ -n "$ssh" ]]
+    then
+        # Sanity check for ssh
+        $ssh -q test-connection || error "Unable to connect to $address"
+    fi
+
+    case ${p_type="push"} in
+        pull|PULL)
+            sender=${ssh-$p_baksnapperd}
+            receiver=$p_baksnapperd
+            ;;
+        push|PUSH)
+            sender=$p_baksnapperd
+            receiver=${ssh-$p_baksnapperd}
+            ;;
+        *)
+            error "Unknown type! $p_type"
+            ;;
+    esac
+
+    if ! receiver_version=$($receiver version)
+    then
+        receiver_version=1
+    fi
+
+    if ! sender_version=$($sender version)
+    then
+        sender_version=1
+    fi
+
+    if [[ "$receiver_version" -gt 3 ]]
+    then
+        error "receiver is too new, need to use version 1-3"
+    fi
+
+    if [[ "$sender_version" -gt 3 ]]
+    then
+        error "sender is too new, need to use version 1-3"
+    fi
+
+    # Get the subvolume to backup
+    case $sender_version in
+        2|3)
+            subvolume=$($sender get-snapper-root "$p_config")
+            ;;
+        1)
+            if ! subvolume=$($sender list-snapper-snapshots "$p_config")
+            then
+                error "Something went wrong when fetching the snapper root from sender"
+            fi
+            ;;
+        *)
+            error "Unknown version for sender '$sender_version'"
+            ;;
+    esac
+
+    src_root=${subvolume:?}/.snapshots
+    dest_root="$dest/$p_config"
+elif [[ -n "$p_src" && -n "$p_dest" ]]
+then
+    # Setup the endpoint's directory and transfer command
+    # 1 [out]: will store the root of the endpoint
+    # 2 [out]: will store the transfer command for the endpoint
+    # 3 [in]: source/dest input
+    # 4 [in]...: ssh arguments
+    function setup-endpoint {
+        declare -n root=$1
+        declare -n transfer=$2
+        local regex='(.*?):(.*)'
+        local ssh
+        local address
+        local input=$3
+        shift 3
+        if [[ $input =~ $regex ]]
+        then
+            address="${BASH_REMATCH[1]}"
+            ssh="ssh $* $address"
+            root="${BASH_REMATCH[2]}"
+            transfer=$ssh
+
+            # Sanity check for ssh
+            $ssh -q test-connection || error "Unable to connect to $address"
+        else
+            # shellcheck disable=SC2034
+            root=$input
+            # shellcheck disable=SC2034
+            transfer=$p_baksnapperd
+        fi
+
+    }
+    setup-endpoint src_root sender "$p_src" "${p_src_ssh_args[@]}"
+    setup-endpoint dest_root receiver "$p_dest" "${p_dest_ssh_args[@]}"
+
+    # Get the version of the daemon
+    # 1: save the version to this variable
+    # 2: variable that contains the baksnapperd command
+    function get-daemon-version {
+        declare -n version=$1
+        if ! version=$(${!2} version)
+        then
+            version=1
+        fi
+        if [[ "$version" -gt 3 ]]
+        then
+            error "$2 is too new, need to use version 1-3"
+        fi
+    }
+    get-daemon-version sender_version sender
+    get-daemon-version receiver_version receiver
 else
-    dest=$p_dest
+    error "You need to specify the SOURCE and DEST or the config name to backup!"
 fi
 
 ## Setup signals ###############################################################
 # EXIT   --> if notify-send is installed, inform the user; always cleanup
 if hash notify-send 2> /dev/null
 then
-    notify-send -u critical "Backing up $p_config. Do not turn off computer!"
+    notify-send -u critical "Backing up $src_root. Do not turn off computer!"
     trap exit-msg EXIT
 else
     trap cleanup EXIT
@@ -346,73 +548,13 @@ p_temp_dir=$(mktemp -d "${TEMP:-/tmp/}$(basename "$0").XXXXX")
 p_summary="${p_temp_dir}/summary.txt"
 printf "dest_root\tsrc\tdest\tbytes\tstart\tend\tduration\n" >"${p_summary}"
 
-
-if [[ -n "$ssh" ]]
-then
-    # Sanity check for ssh
-    $ssh -q test-connection || error "Unable to connect to $address"
-fi
-
-case ${p_type="push"} in
-    pull|PULL)
-        sender=${ssh-$p_baksnapperd}
-        receiver=$p_baksnapperd
-    ;;
-    push|PUSH)
-        sender=$p_baksnapperd
-        receiver=${ssh-$p_baksnapperd}
-    ;;
-    *)
-        error "Unknown type! $p_type"
-    ;;
-esac
-
-if ! receiver_version=$($receiver version)
-then
-    receiver_version=1
-fi
-
-if ! sender_version=$($sender version)
-then
-    sender_version=1
-fi
-
-if [[ "$receiver_version" -gt 3 ]]
-then
-    error "receiver is too new, need to use version 1-3"
-fi
-
-if [[ "$sender_version" -gt 3 ]]
-then
-    error "sender is too new, need to use version 1-3"
-fi
-
-# Get the subvolume to backup
-case $sender_version in
-    2|3)
-        subvolume=$($sender get-snapper-root "$p_config")
-        ;;
-    1)
-        if ! subvolume=$($sender list-snapper-snapshots "$p_config")
-        then
-            error "Something went wrong when fetching the snapper root from sender"
-        fi
-        ;;
-    *)
-        error "Unknown version for sender '$sender_version'"
-        ;;
-esac
-
-src_root=${subvolume:?}/.snapshots
-dest_root="$dest/$p_config"
-
 $receiver create-config "$dest_root" || error "Problem creating config at backup location"
 
 ## Function definitions ########################################################
 
 # - First argument  ... start-time to calculate the duration
 # - Second argument ... snapper id
-# Function ist used by single-backup and incremental-backup
+# Function is used by single-backup and incremental-backup
 function print-statistics {
     local start_time
     local end_time
