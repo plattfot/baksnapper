@@ -113,48 +113,56 @@ foreach conf: [
     'runner-args': [],
     'baksnapper-args': ['--config', 'root'],
     'configfile': false,
+    'suite': ['config'],
   },
   {
     'suffix': '-src-dest',
     'runner-args': ['--src-dest'],
     'baksnapper-args': [],
     'configfile': false,
+    'suite': ['src-dest'],
   },
   {
     'suffix': '-configfile',
     'runner-args': [],
     'baksnapper-args': [],
     'configfile': true,
+    'suite': ['configfile'],
   },
   {
     'suffix': '-configfile-path',
     'runner-args': ['--path-config'],
     'baksnapper-args': [],
     'configfile': true,
+    'suite': ['configfile', 'config'],
   },
   {
     'suffix': '-configfile-src-dest',
     'runner-args': ['--src-dest'],
     'baksnapper-args': [],
     'configfile': true,
+    'suite': ['configfile', 'src-dest'],
   },
   {
     'suffix': '-configfile-src',
     'runner-args': ['--src-dest', '--src-config'],
     'baksnapper-args': [],
     'configfile': true,
+    'suite': ['configfile', 'src-dest'],
   },
   {
     'suffix': '-configfile-dest',
     'runner-args': ['--src-dest', '--dest-config'],
     'baksnapper-args': [],
     'configfile': true,
+    'suite': ['configfile', 'src-dest'],
   },
   {
     'suffix': '-configfile-both',
     'runner-args': ['--src-dest', '--src-config', '--dest-config'],
     'baksnapper-args': [],
     'configfile': true,
+    'suite': ['configfile', 'src-dest'],
   },
 ]
   foreach test_entry: [
@@ -170,6 +178,7 @@ foreach conf: [
       ],
       'configfile': 'default',
       'configfile-baksnapper-args': [],
+      'suite': ['backup'],
     },
     {
       'name': 'latest',
@@ -185,6 +194,7 @@ foreach conf: [
       ],
       'configfile': 'latest',
       'configfile-baksnapper-args': [],
+      'suite': ['latest'],
     },
     {
       'name': 'prune',
@@ -200,6 +210,7 @@ foreach conf: [
       ],
       'configfile': 'prune',
       'configfile-baksnapper-args': [],
+      'suite': ['prune'],
     },
     {
       'name': 'backup-2',
@@ -214,6 +225,7 @@ foreach conf: [
       ],
       'configfile': 'default',
       'configfile-baksnapper-args': [],
+      'suite': ['backup'],
     },
     {
       'name': 'delete-1',
@@ -229,6 +241,7 @@ foreach conf: [
       ],
       'configfile': 'default',
       'configfile-baksnapper-args': [],
+      'suite': ['delete'],
     },
     {
       'name': 'delete-1,3',
@@ -244,6 +257,7 @@ foreach conf: [
       ],
       'configfile': 'default',
       'configfile-baksnapper-args': [],
+      'suite': ['delete'],
     },
     {
       'name': 'backup-with-right-parent',
@@ -258,6 +272,7 @@ foreach conf: [
       ],
       'configfile': 'default',
       'configfile-baksnapper-args': [],
+      'suite': ['backup'],
     },
     # https://github.com/plattfot/baksnapper/issues/27
     {
@@ -274,12 +289,14 @@ foreach conf: [
       ],
       'configfile': 'all',
       'configfile-baksnapper-args': [],
+      'suite': ['backup'],
     }
   ]
     foreach ssh: [
       {
         'suffix': '',
         'args': [],
+        'suite': [],
       },
       {
         'suffix': '-ssh-src',
@@ -346,6 +363,7 @@ foreach conf: [
             baksnapper,
             baksnapperd,
           ] + test_depends,
+          suite: conf['suite'] + test_entry['suite'],
         )
       endforeach
     endforeach
