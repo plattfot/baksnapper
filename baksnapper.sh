@@ -25,7 +25,7 @@ Options:
 -a, --all         Send all snapshots in the source directory.  Default
                   is to only send the last one.
 
---config NAME     Name of config.
+--config NAME     Name of config. (deprecated)
 
 --source SOURCE   Source path, sets the same as positional SOURCE.
                   Useful if setting DEST in config file.
@@ -63,7 +63,7 @@ Options:
 
 --type TYPE       Specify either to backup snapshots to a server
                   (push) or to backup snapshots from a server
-                  (pull). Default is to push.
+                  (pull). Default is to push. (deprecated)
 
 --link            Create a "latest" directory linked to the latest snapshot
 
