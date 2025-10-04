@@ -4,6 +4,7 @@
 
 project(
   'baksnapper',
+  meson_version: '>=1.4',
   version: run_command('./build-aux/version', check: true).stdout().strip()
 )
 
