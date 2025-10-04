@@ -371,7 +371,7 @@ case $key in
         shift
         ;;
     -v|--verbose)
-        p_verbose=1
+        set -x
         shift
         ;;
     --version)
@@ -386,11 +386,6 @@ esac
 done
 
 ## Setup #######################################################################
-if [[ $p_verbose == 1 ]]
-then
-    set -x
-fi
-
 p_baksnapperd=${p_baksnapperd=baksnapperd}
 p_all=${p_all=0}
 
