@@ -20,9 +20,10 @@ baksnapper = custom_target(
   install_tag: 'runtime',
 )
 
+compile_baksnapperd = find_program('./build-aux/compile-baksnapperd.sh')
 baksnapperd = custom_target(
-  command: [install_cmd, '@INPUT@', '@OUTPUT@'],
-  input: 'baksnapperd.sh',
+  command: [compile_baksnapperd, '@INPUT0@', '@INPUT1@', '--output', '@OUTPUT@'],
+  input: ['baksnapperd.sh', 'baksnapperd-common.sh'],
   output: 'baksnapperd',
   install: true,
   install_dir: 'bin',

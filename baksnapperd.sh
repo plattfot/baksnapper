@@ -31,10 +31,6 @@ case "$1" in
     version) # Return what version of the API it's using, always one integer
         echo 3
         ;;
-    list-snapshots) # List snapshots at backup location
-        shift
-        find "$1" -mindepth 1 -maxdepth 1 -type d -printf "%f\n" | sort -g
-        ;;
     get-snapper-root) # Return the location of the .snapshots directory
         shift
         snapper --no-dbus -c "$1" get-config | grep SUBVOLUME | awk '{ print $3 }'
@@ -117,35 +113,11 @@ case "$1" in
         fi
         rm -r -- "${dest_root:?}/$snapshot"
         ;;
-    link-latest)
-        shift
-        declare -a snapshots
-        if [[ -e "$1/latest" ]]; then
-            if [[ -h "$1/latest" ]]; then
-                rm "$1/latest"
-            else
-                error "$1/latest exists and is not a symbolic link. Link is not created."
-            fi
-        fi
-        for dir in $(find "$1" -maxdepth 1 -mindepth 1 -type d -printf "%P\n"|sort --version-sort)
-        do
-            if [[ -d "$1/$dir/snapshot" && ! -h "$1/$dir" ]]; then
-                snapshots+=("$dir")
-            fi
-        done
-        if  [ ${#snapshots[@]} -ne 0 ]; then
-            ln -sfn "${snapshots[-1]}" "$1/latest"
-        else
-            error "link-latest: No suitable snapshots at $1 (${#snapshots[@]})"
-        fi
-        ;;
-    test-connection)
-        exit 0
-        ;;
     --version)
         echo -e "$version"
         exit 0
         ;;
+# @COMMON_INCLUDE@
     *)
         error "Unrecognized command, bailing out!"
         ;;
