@@ -445,31 +445,26 @@ then
         sender_version=1
     fi
 
-    if [[ "$receiver_version" -gt 3 ]]
+    if [[ $receiver_version -gt 3 ]]
     then
         error "receiver is too new, need to use version 1-3"
     fi
 
-    if [[ "$sender_version" -gt 3 ]]
+    if [[ $sender_version -gt 3 ]]
     then
         error "sender is too new, need to use version 1-3"
     fi
 
     # Get the subvolume to backup
-    case $sender_version in
-        2|3)
-            subvolume=$($sender get-snapper-root "$p_config")
-            ;;
-        1)
-            if ! subvolume=$($sender list-snapper-snapshots "$p_config")
-            then
-                error "Something went wrong when fetching the snapper root from sender"
-            fi
-            ;;
-        *)
-            error "Unknown version for sender '$sender_version'"
-            ;;
-    esac
+    if [[ $sender_version -ge 2 ]]
+    then
+        subvolume=$($sender get-snapper-root "$p_config")
+    else
+        if ! subvolume=$($sender list-snapper-snapshots "$p_config")
+        then
+            error "Something went wrong when fetching the snapper root from sender"
+        fi
+    fi
 
     src_root=${subvolume:?}/.snapshots
     dest_root="$dest/$p_config"
@@ -517,7 +512,7 @@ then
         then
             version=1
         fi
-        if [[ "$version" -gt 3 ]]
+        if [[ $version -gt 3 ]]
         then
             error "$2 is too new, need to use version 1-3"
         fi
@@ -569,17 +564,12 @@ function print-statistics {
 # num_src_snapshots: the size of src_snapshots
 function gather-sender-snapshots {
     # List all the snapshots available
-    case $sender_version in
-        2|3)
-            mapfile -t src_snapshots < <($sender list-snapshots "$src_root")
-            ;;
-        1)
-            mapfile -d' ' -t src_snapshots < <($sender list-snapshots "$src_root"|tr -d '\n')
-            ;;
-        *)
-            error "Unknown version for sender '$sender_version'"
-            ;;
-    esac
+    if [[ $sender_version -ge 2 ]]
+    then
+        mapfile -t src_snapshots < <($sender list-snapshots "$src_root")
+    else
+        mapfile -d' ' -t src_snapshots < <($sender list-snapshots "$src_root"|tr -d '\n')
+    fi
     num_src_snapshots=${#src_snapshots[@]}
 }
 
@@ -588,17 +578,12 @@ function gather-sender-snapshots {
 # num_dest_snapshots: the size of dest_snapshots
 function gather-receiver-snapshots {
     # List all the snapshots at the backup location
-    case $receiver_version in
-        2|3)
-            mapfile -t dest_snapshots < <($receiver list-snapshots "$dest_root")
-            ;;
-        1)
-            mapfile -d' ' -t dest_snapshots < <($receiver list-snapshots "$dest_root"|tr -d '\n')
-            ;;
-        *)
-            error "Unknown version for receiver '$receiver_version'"
-            ;;
-    esac
+    if [[ $receiver_version -ge 2 ]]
+    then
+        mapfile -t dest_snapshots < <($receiver list-snapshots "$dest_root")
+    else
+        mapfile -d' ' -t dest_snapshots < <($receiver list-snapshots "$dest_root"|tr -d '\n')
+    fi
     num_dest_snapshots=${#dest_snapshots[@]}
 }
 
