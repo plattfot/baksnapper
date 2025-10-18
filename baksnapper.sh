@@ -466,6 +466,16 @@ then
         fi
     fi
 
+    if [[ $sender_version -ge 4 && $($sender snapshot-type) != "snapper" ]]
+    then
+        error "config interface only supports snapper"
+    fi
+
+    if [[ $receiver_version -ge 4 && $($receiver snapshot-type) != "snapper" ]]
+    then
+        error "config interface only supports snapper"
+    fi
+
     src_root=${subvolume:?}/.snapshots
     dest_root="$dest/$p_config"
 elif [[ -n "$p_src" && -n "$p_dest" ]]
@@ -522,6 +532,32 @@ then
 else
     error "You need to specify the SOURCE and DEST or the config name to backup!"
 fi
+
+# Get what snapshot type the daemon supports
+# 1 [out]: variable where it will save the snapshot type.
+# 2 [in]: variable that contains the baksnapperd backend
+# 3 [in]: the version of the baksnapperd backend
+function get-snapshot-type {
+    declare -n snapshot_type=$1
+    if [[ $3 -ge 4 ]]
+    then
+        snapshot_type=$(${!2} snapshot-type)
+    else
+        # shellcheck disable=SC2034
+        backend=snapper
+    fi
+}
+get-snapshot-type sender_snapshot_type sender "$sender_version"
+get-snapshot-type receiver_snapshot_type receiver "$receiver_version"
+
+# shellcheck disable=SC2154
+if [[ "$sender_snapshot_type" != "$receiver_snapshot_type" ]]
+then
+    error "Sender and receiver expects different snapshot types: sender: \
+$sender_snapshot_type, receiver: $receiver_snapshot_type"
+fi
+
+snapshot_type=$sender_snapshot_type
 
 ## Setup signals ###############################################################
 # EXIT   --> if notify-send is installed, inform the user; always cleanup
@@ -645,15 +681,17 @@ function single-backup {
     local start_time
     start_time=$(date +%s)
 
-    $receiver create-snapshot "$dest_root" "$1" ||
-        error "Failed to create snapshot at backup location!"
-
-    if ! $sender send-info "$src_root" "$1" | $receiver receive-info "$dest_root" "$1"
+    if [[ "$snapshot_type" == "snapper" ]]
     then
-        $receiver remove-broken-snapshot "$dest_root" "$1"
-        error "Failed to send snapshot info!"
-    fi
+        $receiver create-snapshot "$dest_root" "$1" ||
+            error "Failed to create snapshot at backup location!"
 
+        if ! $sender send-info "$src_root" "$1" | $receiver receive-info "$dest_root" "$1"
+        then
+            $receiver remove-broken-snapshot "$dest_root" "$1"
+            error "Failed to send snapshot info!"
+        fi
+    fi
     printf "%s\t\t%s\t" "${dest_root}" "${1}" >>"${p_summary}"
     exec 4>"${p_temp_dir}/${1}"
     if ! $sender send-snapshot "$src_root" "$1" | tee >( wc -c >&4 ) | $receiver receive-snapshot "$dest_root" "$1"
@@ -676,16 +714,17 @@ function incremental-backup {
     start_time=$(date +%s)
 
     echo "Incremental backup $1 $2"
-
-    $receiver create-snapshot "$dest_root" "$2" ||
-        error "Failed to create snapshot at backup location!"
-
-    if ! $sender send-info "$src_root" "$2" | $receiver receive-info "$dest_root" "$2"
+    if [[ "$snapshot_type" == "snapper" ]]
     then
-        $receiver remove-broken-snapshot "$dest_root" "$1"
-        error "Failed to send snapshot info!"
-    fi
+        $receiver create-snapshot "$dest_root" "$2" ||
+            error "Failed to create snapshot at backup location!"
 
+        if ! $sender send-info "$src_root" "$2" | $receiver receive-info "$dest_root" "$2"
+        then
+            $receiver remove-broken-snapshot "$dest_root" "$1"
+            error "Failed to send snapshot info!"
+        fi
+    fi
     printf "%s\t%s\t%s\t" "${dest_root}" "${1}" "${2}" >>"${p_summary}"
     exec 4>"${p_temp_dir}/${2}"
     if ! $sender send-incremental-snapshot "$src_root/"{"$1","$2"} \
