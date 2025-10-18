@@ -33,7 +33,7 @@ case "$1" in
         #
         # It always a single integer.
         # No input.
-        echo 3
+        echo 4
         ;;
     list-snapshots)
         # List snapshots at location.
@@ -69,7 +69,7 @@ case "$1" in
         [[ ! -d "$1/$2/snapshot" ]] || \
         [[ $(btrfs property get "$1/$2/snapshot" ro) != "ro=true" ]]
         ;;
-    create-config)
+    create-location)
         # Prepare destination to receive a snapshot.
         #
         # 1 [in]: Path to the directory the snapshots will be in.

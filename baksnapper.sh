@@ -445,14 +445,14 @@ then
         sender_version=1
     fi
 
-    if [[ $receiver_version -gt 3 ]]
+    if [[ $receiver_version -gt 4 ]]
     then
-        error "receiver is too new, need to use version 1-3"
+        error "receiver is too new, need to use version 1-4"
     fi
 
-    if [[ $sender_version -gt 3 ]]
+    if [[ $sender_version -gt 4 ]]
     then
-        error "sender is too new, need to use version 1-3"
+        error "sender is too new, need to use version 1-4"
     fi
 
     # Get the subvolume to backup
@@ -512,9 +512,9 @@ then
         then
             version=1
         fi
-        if [[ $version -gt 3 ]]
+        if [[ $version -gt 4 ]]
         then
-            error "$2 is too new, need to use version 1-3"
+            error "$2 is too new, need to use version 1-4"
         fi
     }
     get-daemon-version sender_version sender
@@ -538,7 +538,12 @@ p_temp_dir=$(mktemp -d "${TEMP:-/tmp/}$(basename "$0").XXXXX")
 p_summary="${p_temp_dir}/summary.txt"
 printf "dest_root\tsrc\tdest\tbytes\tstart\tend\tduration\n" >"${p_summary}"
 
-$receiver create-config "$dest_root" || error "Problem creating config at backup location"
+if [[ $receiver_version -ge 4 ]]
+then
+    $receiver create-location "$dest_root" || error "Problem creating backup location"
+else
+    $receiver create-config "$dest_root" || error "Problem creating config at backup location"
+fi
 
 ## Function definitions ########################################################
 
