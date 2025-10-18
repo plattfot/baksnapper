@@ -509,8 +509,8 @@ then
     setup-endpoint dest_root receiver "$p_dest" "${p_dest_ssh_args[@]}"
 
     # Get the version of the daemon
-    # 1: save the version to this variable
-    # 2: variable that contains the baksnapperd command
+    # 1 [out]: save the version to this variable
+    # 2 [in]: variable that contains the baksnapperd command
     function get-daemon-version {
         declare -n version=$1
         if ! version=$(${!2} version)
