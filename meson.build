@@ -30,6 +30,16 @@ baksnapperd = custom_target(
   install_tag: 'runtime',
 )
 
+baksnapperd_denotebak = custom_target(
+  command: [install_cmd, '@INPUT@', '@OUTPUT@'],
+  input: 'baksnapperd-denotebak.sh',
+  output: 'baksnapperd-denotebak',
+  install: true,
+  install_dir: 'bin',
+  install_mode: 'rwxr-xr-x',
+  install_tag: 'runtime',
+)
+
 bsconf_root = get_option('bsconf-root')
 if bsconf_root == ''
   bsconf_root = get_option('sysconfdir')
