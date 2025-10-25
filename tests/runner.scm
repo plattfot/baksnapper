@@ -352,8 +352,8 @@ Fredrik \"PlaTFooT\" Salomonsson
       (format #t "  expected: ~a~%" expected)
       (let ((exit-status 0)
             (sender-snapshots
-             (map (lambda (id)
-                    (make-snapshot id #f 'valid))
+             (map (lambda (input)
+                    (make-snapshot-from input))
                   sender))
             (receiver-snapshots
              (map (lambda (input)
