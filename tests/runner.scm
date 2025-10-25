@@ -23,11 +23,12 @@
   (string-join paths file-name-separator-string))
 
 (define-record-type <snapshot>
-  (make-snapshot id parent state)
+  (make-snapshot id parent state tags)
   snapshot?
   (id snapshot-id)
   (parent snapshot-parent)
-  (state snapshot-state))
+  (state snapshot-state)
+  (tags snapshot-tags))
 
 (define (make-snapshot-from input)
   "Parse INPUT and create a snapshot from it."
@@ -37,12 +38,13 @@
           (map
            (lambda (metadatum)
              (match (string-split metadatum #\=)
-              (("p" parent) (cons 'parent parent))
-              (("s" state)
-               (let ((state-sym (string->symbol state)))
-                 (match state-sym
+               (("p" parent) (cons 'parent parent))
+               (("s" state)
+                (let ((state-sym (string->symbol state)))
+                  (match state-sym
                     ((or 'valid 'empty 'no-info 'no-snapshot 'incomplete)
-                     (cons 'state state-sym)))))))
+                     (cons 'state state-sym)))))
+               (("t" tags) (cons 'tags tags))))
            (cdr info))))
     (make-snapshot
      id
@@ -51,7 +53,10 @@
        (_ #f))
      (match (assoc 'state metadata)
        (('state . s) s)
-       (_ 'valid)))))
+       (_ 'valid))
+     (match (assoc 'state metadata)
+       (('tags . t) t)
+       (_ #f)))))
 
 (define* (create-snapshot path snapshot #:key valid?)
   "Create a dummy snapshot at PATH.
@@ -121,19 +126,19 @@ incomplete.  It will have both `info.xml` and `snapshot`.  But the
       ('valid
        (mkdir path)
        (create-info.xml)
-       (create-snapshot #:valid? #t))
+       (create-snapshot snapshot-dir snapshot #:valid? #t))
       ('empty
        (mkdir path))
       ('no-info
        (mkdir path)
-       (create-snapshot #:valid? #t))
+       (create-snapshot snapshot-dir snapshot #:valid? #t))
       ('no-snapshot
        (mkdir path)
        (create-info.xml))
       ('incomplete
        (mkdir path)
        (create-info.xml)
-       (create-snapshot #:valid? #f)))))
+       (create-snapshot snapshot-dir snapshot #:valid? #f)))))
 
 (define (check-snapshot-input value)
   "Verify the input for receiver or expected."
@@ -214,7 +219,8 @@ Where DATA is in the format of what you get calling `read-snapshots'."
        ((#t () _)
         'no-snapshot)
        (_
-        'incomplete)))))
+        'incomplete))
+     #f)))
 
 (define (check-latest expected-latest receiver-dir)
   "Verify that EXPECTED-LATEST points to the expected snapshot.
