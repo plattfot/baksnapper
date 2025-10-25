@@ -209,6 +209,6 @@ case "$1" in
         exit 0
         ;;
     *)
-        error "Unrecognized command, bailing out!"
+        error "Unrecognized command '$1', bailing out!"
         ;;
 esac
