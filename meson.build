@@ -399,3 +399,44 @@ test(
   ],
   should_fail: true,
 )
+
+test(
+  'denotebak',
+  runner,
+  env: test_env,
+  args: [
+    '--sender', ','.join([
+      '20251023T130000:t=dailies',
+      '20251023T180000:t=dailies',
+      '20251024T090000:t=dailies',
+      '20251024T130000:t=dailies',
+      '20251024T180000:t=dailies',
+      '20251025T120000',
+      '20251025T130000:t=dailies',
+      '20251025T140000:t=hourly',
+      '20251025T150000:t=hourly',
+      '20251025T160000:t=hourly']),
+    '--expected', ','.join([
+      '20251023T130000',
+      '20251023T180000:p=20251023T130000',
+      '20251024T090000:p=20251023T180000',
+      '20251024T130000:p=20251024T090000',
+      '20251024T180000:p=20251024T130000',
+      '20251025T120000:p=20251024T180000',
+      '20251025T130000:p=20251025T120000',
+      '20251025T140000:p=20251025T130000',
+      '20251025T150000:p=20251025T140000',
+      '20251025T160000:p=20251025T150000']),
+    '--type', 'denotebak',
+    '--src-dest',
+    '--',
+    baksnapper[0].full_path(),
+    '--daemon', baksnapperd_denotebak[0].full_path(),
+    '--all',
+  ],
+  depends: [
+    baksnapper,
+    baksnapperd_denotebak,
+  ],
+  suite: 'backup',
+)
