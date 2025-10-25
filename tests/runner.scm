@@ -53,6 +53,29 @@
        (('state . s) s)
        (_ 'valid)))))
 
+(define* (create-snapshot path snapshot #:key valid?)
+  "Create a dummy snapshot at PATH.
+
+It will have the following structure:
+
+PATH
+└── data
+
+The file `data` will contain; snapshot=ID, where ID is the id from
+SNAPSHOT; parent=PARENT, where PARAENT is the parent from SNAPSHOT.
+If parent is #f it will skip it.
+
+It will also contain `ro=true` if VALID? evaluates to true."
+(mkdir path)
+(let ((port (open-output-file
+             (string-append path file-name-separator-string "data"))))
+  (and-let* ((parent (snapshot-parent snapshot)))
+    (format port "parent=~a~%" parent))
+  (format port "snapshot=~a~%" (snapshot-id snapshot))
+  (when valid?
+    (format port "ro=true~%"))
+  (close-port port)))
+
 (define (create-snapper-snapshot path snapshot)
   "Create dummy snapper snapshot at PATH for SNAPSHOT.
 
@@ -93,18 +116,7 @@ incomplete.  It will have both `info.xml` and `snapshot`.  But the
          (create-info.xml (lambda ()
                            (close-port
                             (open-output-file
-                             (string-append path "/info.xml")))))
-         (create-snapshot (lambda* (#:key valid?)
-                            (mkdir snapshot-dir)
-                            (let ((port (open-output-file
-                                         (string-append snapshot-dir
-                                                        file-name-separator-string "data"))))
-                              (and-let* ((parent (snapshot-parent snapshot)))
-                                (format port "parent=~a~%" parent))
-                              (format port "snapshot=~a~%" (snapshot-id snapshot))
-                              (when valid?
-                                (format port "ro=true~%"))
-                              (close-port port)))))
+                             (string-append path "/info.xml"))))))
     (match (snapshot-state snapshot)
       ('valid
        (mkdir path)
