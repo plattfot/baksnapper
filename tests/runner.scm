@@ -63,15 +63,22 @@
 
 It will have the following structure:
 
-PATH
+PATH[__<tags>]
 └── data
 
 The file `data` will contain; snapshot=ID, where ID is the id from
 SNAPSHOT; parent=PARENT, where PARAENT is the parent from SNAPSHOT.
 If parent is #f it will skip it.
 
+It will append the tags string to the path, separated by `__`, if that
+does not evaluate to false.
+
 It will also contain `ro=true` if VALID? evaluates to true."
-(mkdir path)
+(mkdir
+ (match (snapshot-tags snapshot)
+   (#f path)
+   (tags (string-append path "__" tags))))
+
 (let ((port (open-output-file
              (string-append path file-name-separator-string "data"))))
   (and-let* ((parent (snapshot-parent snapshot)))
@@ -154,6 +161,7 @@ incomplete.  It will have both `info.xml` and `snapshot`.  But the
                   (_
                    (format (current-error-port) "unsupported state: ~a~%" state)
                    #f)))
+               (("t" tags) #t)
                (_
                 (format (current-error-port) "invalid snapshot syntax: ~a~%" metadata)
                 #f))
@@ -278,7 +286,7 @@ Return the path to the modified CONFIGFILE if it is defined otherwise #f."
 (define (main args)
   (let* ((option-spec
           `((config (single-char #\c) (value #t))
-            (sender (single-char #\s) (value #t))
+            (sender (single-char #\s) (value #t) (predicate ,check-snapshot-input))
             (latest (single-char #\l) (value #t))
             (receiver (single-char #\r) (value #t) (predicate ,check-snapshot-input))
             (expected (single-char #\e) (value #t) (predicate ,check-snapshot-input))
@@ -350,6 +358,7 @@ Fredrik \"PlaTFooT\" Salomonsson
     (let* ((parse-comma-option
             (lambda (input)
               (remove string-null? (string-split (option-ref options input "")  #\,))))
+           (type (string->symbol (option-ref options 'type "snapper")))
            (config (option-ref options 'config "root"))
            (sender (parse-comma-option 'sender))
            (receiver (parse-comma-option 'receiver))
@@ -361,7 +370,10 @@ Fredrik \"PlaTFooT\" Salomonsson
            (sender-dir (path-join test-dir config ".snapshots"))
            (receiver-root-dir (path-join test-dir "receiver"))
            (receiver-dir (path-join receiver-root-dir config))
-           (configfile (option-ref options 'configfile #f)))
+           (configfile (option-ref options 'configfile #f))
+           (create-snapshot-func (match type
+                                   ('denotebak create-denotebak-snapshot)
+                                   (_ create-snapper-snapshot))))
       ;; Needed for nftw to be able to read the directory
       (chmod test-dir #o744)
       (format #t "Test ~a~%" test-dir)
@@ -389,7 +401,7 @@ Fredrik \"PlaTFooT\" Salomonsson
         (mkdir sender-dir)
         (for-each
          (lambda (snapshot)
-           (create-snapper-snapshot
+           (create-snapshot-func
             (path-join sender-dir (snapshot-id snapshot))
             snapshot))
          sender-snapshots)
@@ -398,7 +410,7 @@ Fredrik \"PlaTFooT\" Salomonsson
         (mkdir receiver-dir)
         (for-each
          (lambda (snapshot)
-           (create-snapper-snapshot
+           (create-snapshot-func
             (path-join receiver-dir (snapshot-id snapshot))
             snapshot))
          receiver-snapshots)
