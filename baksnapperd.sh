@@ -56,7 +56,7 @@ case "$1" in
         # 1 [in]: File path to a snapshot
         # Return 0 if it exist, non-zero otherwise.
         shift
-        find "$1" &> /dev/null || error "Snapshot $1 doesn't exist."
+        test -d "$1" || error "Snapshot $1 doesn't exist."
         ;;
     incomplete-snapshot)
         # Check if a snapshot is incomplete.
