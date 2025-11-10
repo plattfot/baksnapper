@@ -230,6 +230,36 @@ Where DATA is in the format of what you get calling `read-snapshots'."
         'incomplete))
      #f)))
 
+(define (make-snapshot-from-denotebak-read data)
+  "Create a snapshot from DATA.
+
+Where DATA is in the format of what you get calling `read-snapshots'."
+  (match data
+    (('latest . #t) (make-snapshot 'latest #f 'valid #f))
+    (_
+     (let* ((id (car data))
+            (get (lambda (key alist default)
+                   (match (assoc key alist)
+                     ((key . v) v)
+                     (_ default))))
+            (metadata (cadr data))
+            (snapshot-info (get "snapshot" metadata #f))
+            (read-only (match (assoc "ro" metadata)
+                         (("ro" . "true") #t)
+                         (_ #f)))
+            (parent (get "parent" metadata #f)))
+       (make-snapshot
+        id
+        parent
+        (match (list snapshot-info read-only)
+          ((#f _)
+           'no-snapshot)
+          ((snapshot #t)
+           'valid)
+          (_
+           'incomplete))
+        #f)))))
+
 (define (check-latest expected-latest receiver-dir)
   "Verify that EXPECTED-LATEST points to the expected snapshot.
 
