@@ -683,7 +683,7 @@ function incremental-backup {
 
     printf "%s\t%s\t%s\t" "${dest_root}" "${1}" "${2}" >>"${p_summary}"
     exec 4>"${p_temp_dir}/${2}"
-    if ! $sender send-incremental-snapshot "$subvolume/.snapshots/"{"$1","$2"} \
+    if ! $sender send-incremental-snapshot "$src_root/"{"$1","$2"} \
             | tee >( wc -c >&4 ) | $receiver receive-snapshot "$dest_root" "$2"
     then
         $receiver remove-broken-snapshot "$dest_root" "$1"
