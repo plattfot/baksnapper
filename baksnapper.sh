@@ -714,7 +714,7 @@ function backup {
 
     if [[ -z $p_snapshot ]]
     then
-        p_snapshot=${src_snapshots[num_src_snapshots-1]}
+        p_snapshot=${src_snapshots[-1]}
     else
         $sender verify-snapshot "$src_root/$p_snapshot" || exit 1
     fi
