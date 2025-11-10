@@ -196,7 +196,7 @@ incomplete.  It will have both `info.xml` and `snapshot`.  But the
               (read-snapshots (cons (path-join parent name) child)))
             children)))))
 
-(define (make-snapshot-from-read data)
+(define (make-snapshot-from-snapper-read data)
   "Create a snapshot from DATA.
 
 Where DATA is in the format of what you get calling `read-snapshots'."
@@ -403,7 +403,10 @@ Fredrik \"PlaTFooT\" Salomonsson
            (configfile (option-ref options 'configfile #f))
            (create-snapshot-func (match type
                                    ('denotebak create-denotebak-snapshot)
-                                   (_ create-snapper-snapshot))))
+                                   (_ create-snapper-snapshot)))
+           (make-snapshot-from-read (match type
+                                   ('denotebak make-snapshot-from-denotebak-read)
+                                   (_ make-snapshot-from-snapper-read))))
       ;; Needed for nftw to be able to read the directory
       (chmod test-dir #o744)
       (format #t "Test ~a~%" test-dir)
