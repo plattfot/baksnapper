@@ -60,11 +60,13 @@ do
             ;;
     esac
 done
-
 function subvolume {
     case "$1" in
+        show)
+            test -d "$2"
+            ;;
         delete)
-            rm -rf -- "$1"
+            rm -rf -- "$2"
             ;;
         *)
             >&2 echo "unsupported subcommand to subvolume: $1"
@@ -82,16 +84,21 @@ function receive {
     snapshot_parent=${data%:*}
     if [[ -n "$snapshot_parent" ]]
     then
-        snapshot_parent=$(basename "$(dirname "$snapshot_parent")")
+        if [[ "$(basename "$snapshot_parent")" == "snapshot" ]]
+        then
+            snapshot_parent=$(basename "$(dirname "$snapshot_parent")")
+        else
+            snapshot_parent=$(basename "$snapshot_parent")
+        fi
     fi
     snapshot=${data#*:}
-
-    mkdir -p "$1/snapshot"
+    path="$1/$(basename "$snapshot")"
+    mkdir -p "$path"
     {
         echo "parent=$snapshot_parent"
         echo "snapshot=$snapshot"
         echo "ro=true"
-    } > "$1/snapshot/data"
+    } > "$path/data"
 }
 
 function property {
