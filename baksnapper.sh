@@ -670,7 +670,7 @@ function incremental-backup {
     local duration
     start_time=$(date +%s)
 
-    echo "Incremental backup"
+    echo "Incremental backup $1 $2"
 
     $receiver create-snapshot "$dest_root" "$2" ||
         error "Failed to create snapshot at backup location!"
