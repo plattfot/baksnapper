@@ -720,7 +720,7 @@ function backup {
     fi
 
     local num_src_only=${#only_in_src[@]}
-    if [ "$num_src_only" -eq 0 ]
+    if [[ "$num_src_only" == 0 ]]
     then
         echo "Already backed up all snapshots"
         return 0
@@ -757,7 +757,7 @@ function backup {
     fi
 
     # If source only contained one snapshot, then we are done.
-    if [ "$num_src_only" -eq 0 ]
+    if [[ "$num_src_only" == 0 ]]
     then
         return 0
     fi
