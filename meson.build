@@ -131,6 +131,7 @@ foreach test_entry: [
     'configfile': 'default',
     'configfile-baksnapper-args': [],
     'suite': ['backup'],
+    'depends': [baksnapperd],
   },
   {
     'name': 'latest',
@@ -147,6 +148,7 @@ foreach test_entry: [
     'configfile': 'latest',
     'configfile-baksnapper-args': [],
     'suite': ['latest'],
+    'depends': [baksnapperd],
   },
   {
     'name': 'prune',
@@ -163,6 +165,7 @@ foreach test_entry: [
     'configfile': 'prune',
     'configfile-baksnapper-args': [],
     'suite': ['prune'],
+    'depends': [baksnapperd],
   },
   {
     'name': 'backup-2',
@@ -178,6 +181,7 @@ foreach test_entry: [
     'configfile': 'default',
     'configfile-baksnapper-args': [],
     'suite': ['backup'],
+    'depends': [baksnapperd],
   },
   {
     'name': 'delete-1',
@@ -194,6 +198,7 @@ foreach test_entry: [
     'configfile': 'default',
     'configfile-baksnapper-args': [],
     'suite': ['delete'],
+    'depends': [baksnapperd],
   },
   {
     'name': 'delete-1,3',
@@ -210,6 +215,7 @@ foreach test_entry: [
     'configfile': 'default',
     'configfile-baksnapper-args': [],
     'suite': ['delete'],
+    'depends': [baksnapperd],
   },
   {
     'name': 'backup-with-right-parent',
@@ -225,6 +231,7 @@ foreach test_entry: [
     'configfile': 'default',
     'configfile-baksnapper-args': [],
     'suite': ['backup'],
+    'depends': [baksnapperd],
   },
   # https://github.com/plattfot/baksnapper/issues/27
   {
@@ -242,6 +249,7 @@ foreach test_entry: [
     'configfile': 'all',
     'configfile-baksnapper-args': [],
     'suite': ['backup'],
+    'depends': [baksnapperd],
   },
 ]
   foreach conf: [
@@ -372,8 +380,7 @@ foreach test_entry: [
                 ssh_key['args'] + baksnapper_args,
           depends: [
             baksnapper,
-            baksnapperd,
-          ] + test_depends,
+          ] + test_entry['depends'] + test_depends,
           suite: conf['suite'] + test_entry['suite'],
         )
       endforeach
