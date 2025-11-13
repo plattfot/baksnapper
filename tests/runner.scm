@@ -88,6 +88,30 @@ It will also contain `ro=true` if VALID? evaluates to true."
     (format port "ro=true~%"))
   (close-port port)))
 
+(define (create-denotebak-snapshot path snapshot)
+  "Create dummy DeNotebak snapshot at PATH for SNAPSHOT.
+
+A DeNotebak snapshot is just a btrfs snapshot.  This will mock the
+structure with the following:
+
+PATH[__<tags>]
+└── data
+
+The state in SNAPSHOT specify what state it should create the
+snapshot, accepted values are:
+
+- valid: a complete snapshot as described above.  With `ro=true` added
+to the `data` file.
+
+- incomplete: a broken snapshot which snapshot directory is
+incomplete.  Which is indicated by the `ro=true` attribute will be
+missing in the `data` file."
+  (match (snapshot-state snapshot)
+    ('valid
+     (create-snapshot path snapshot #:valid? #t))
+    ('incomplete
+     (create-snapshot path snapshot #:valid? #f))))
+
 (define (create-snapper-snapshot path snapshot)
   "Create dummy snapper snapshot at PATH for SNAPSHOT.
 
