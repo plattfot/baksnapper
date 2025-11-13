@@ -116,6 +116,27 @@ test_configuration = {
     'ALL': 'YES',
     'VERBOSE': 'NO',
   },
+  'denotebak-default': {
+    'DAEMON': baksnapperd_denotebak[0].full_path(),
+  },
+  'denotebak-latest': {
+    'DAEMON': baksnapperd_denotebak[0].full_path(),
+    'PRUNE': 'NO',
+    'ALL': 'NO',
+    'VERBOSE': 'NO',
+    'LINK': 'YES',
+  },
+  'denotebak-prune': {
+    'DAEMON': baksnapperd_denotebak[0].full_path(),
+    'PRUNE': 'YES',
+    'ALL': 'NO',
+    'VERBOSE': 'NO',
+  },
+  'denotebak-all': {
+    'DAEMON': baksnapperd_denotebak[0].full_path(),
+    'ALL': 'YES',
+    'VERBOSE': 'NO',
+  },
 }
 foreach test_entry: [
   {
