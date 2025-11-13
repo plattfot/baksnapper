@@ -92,6 +92,9 @@ test_env.set('MOCK_SSH_CONNECTION', '0')
 test_env.set('MOCK_SSH_KEY', 'foo.key=foo.example.com:bar.key=bar.example.com')
 test_env.set('MOCK_SSH_BAKSNAPPERD', baksnapperd[0].full_path())
 
+denotebak_test_env = test_env
+denotebak_test_env.set('MOCK_SSH_BAKSNAPPERD', baksnapperd_denotebak[0].full_path())
+
 runner = find_program('./tests/runner.scm')
 
 test_configuration = {
