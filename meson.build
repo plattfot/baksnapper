@@ -398,6 +398,11 @@ foreach test_entry: [
           test_depends += [test_config]
         endif
 
+        # The DeNotebak backend does not support --config
+        if 'denotebak' in test_entry['suite'] and 'src-dest' not in conf['suite']
+          continue
+        endif
+
         test(
           test_entry['name']+conf['suffix']+ssh['suffix']+ssh_key['suffix'],
           runner,
