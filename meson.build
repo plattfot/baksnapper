@@ -283,6 +283,251 @@ foreach test_entry: [
     'depends': [baksnapperd],
     'env': test_env,
   },
+  # DeNotebak
+  {
+    'name': 'denotebak-default',
+    'runner-args': [
+      '--sender', ','.join([
+        '20251023T130000:t=dailies',
+        '20251025T120000',
+        '20251025T160000:t=hourly']),
+      '--expected', ','.join([
+        '20251025T160000']),
+      '--type', 'denotebak',
+    ],
+    'baksnapper-args': [
+      baksnapper[0].full_path(),
+      '--daemon', baksnapperd_denotebak[0].full_path(),
+    ],
+    'configfile': 'denotebak-default',
+    'configfile-baksnapper-args': [],
+    'suite': ['denotebak', 'backup'],
+    'depends': [baksnapperd_denotebak],
+    'env': denotebak_test_env,
+  },
+  {
+    'name': 'denotebak-latest',
+    'runner-args': [
+      '--sender', ','.join([
+        '20251023T130000:t=dailies',
+        '20251025T120000',
+        '20251025T160000:t=hourly']),
+      '--expected', ','.join([
+        '20251025T160000']),
+      '--expected-latest', '20251025T160000',
+      '--type', 'denotebak',
+    ],
+    'baksnapper-args': [
+      baksnapper[0].full_path(),
+      '--daemon', baksnapperd_denotebak[0].full_path(),
+      '--link',
+    ],
+    'configfile': 'denotebak-latest',
+    'configfile-baksnapper-args': [],
+    'suite': ['denotebak', 'latest'],
+    'depends': [baksnapperd_denotebak],
+    'env': denotebak_test_env,
+  },
+  {
+    'name': 'denotebak-prune',
+    'runner-args': [
+      '--sender', ','.join([
+        '20251023T130000:t=dailies',
+        '20251025T120000',
+        '20251025T130000:t=dailies',
+        '20251025T140000:t=hourly',
+        '20251025T150000:t=hourly',
+        '20251025T160000:t=hourly']),
+      '--receiver', ','.join([
+        '20251023T130000',
+        '20251023T180000',
+        '20251024T090000',
+        '20251024T130000',
+        '20251024T180000',
+        '20251025T120000',
+        '20251025T130000']),
+      '--expected', ','.join([
+        '20251023T130000',
+        '20251025T120000',
+        '20251025T130000',
+        '20251025T160000:p=20251025T130000']),
+      '--type', 'denotebak',
+    ],
+    'baksnapper-args': [
+      baksnapper[0].full_path(),
+      '--daemon', baksnapperd_denotebak[0].full_path(),
+      '--prune',
+    ],
+    'configfile': 'denotebak-prune',
+    'configfile-baksnapper-args': [],
+    'suite': ['denotebak', 'prune'],
+    'depends': [baksnapperd_denotebak],
+    'env': denotebak_test_env,
+  },
+  {
+    'name': 'denotebak-backup-20251025T150000',
+    'runner-args': [
+      '--sender', ','.join([
+        '20251025T140000:t=hourly',
+        '20251025T150000:t=hourly',
+        '20251025T160000:t=hourly']),
+      '--expected', ','.join([
+        '20251025T150000']),
+      '--type', 'denotebak',
+    ],
+    'baksnapper-args': [
+      baksnapper[0].full_path(),
+      '--daemon', baksnapperd_denotebak[0].full_path(),
+      '--snapshot', '20251025T150000',
+    ],
+    'configfile': 'denotebak-default',
+    'configfile-baksnapper-args': [],
+    'suite': ['denotebak', 'backup'],
+    'depends': [baksnapperd_denotebak],
+    'env': denotebak_test_env,
+  },
+  {
+    'name': 'denotebak-delete-20251025T140000',
+    'runner-args': [
+      '--sender', ','.join([
+        '20251025T140000:t=hourly',
+        '20251025T150000:t=hourly',
+        '20251025T160000:t=hourly']),
+      '--receiver', ','.join([
+        '20251025T140000',
+        '20251025T150000',
+        '20251025T160000']),
+      '--expected', ','.join([
+        '20251025T150000',
+        '20251025T160000']),
+      '--type', 'denotebak',
+    ],
+    'baksnapper-args': [
+      baksnapper[0].full_path(),
+      '--daemon', baksnapperd_denotebak[0].full_path(),
+      '--delete', '20251025T140000',
+    ],
+    'configfile': 'denotebak-default',
+    'configfile-baksnapper-args': [],
+    'suite': ['denotebak', 'delete'],
+    'depends': [baksnapperd_denotebak],
+    'env': denotebak_test_env,
+  },
+  {
+    'name': 'denotebak-delete-20251025T140000,20251025T160000',
+    'runner-args': [
+      '--sender', ','.join([
+        '20251025T140000:t=hourly',
+        '20251025T150000:t=hourly',
+        '20251025T160000:t=hourly']),
+      '--receiver', ','.join([
+        '20251025T140000:t=hourly',
+        '20251025T150000',
+        '20251025T160000']),
+      '--expected', ','.join([
+        '20251025T150000']),
+      '--type', 'denotebak',
+    ],
+    'baksnapper-args': [
+      baksnapper[0].full_path(),
+      '--daemon', baksnapperd_denotebak[0].full_path(),
+      '--delete', '20251025T140000,20251025T160000',
+    ],
+    'configfile': 'denotebak-default',
+    'configfile-baksnapper-args': [],
+    'suite': ['denotebak', 'delete'],
+    'depends': [baksnapperd_denotebak],
+    'env': denotebak_test_env,
+  },
+  {
+    'name': 'denotebak-backup-with-right-parent',
+    'runner-args': [
+      '--sender', ','.join([
+        '20251023T130000:t=dailies',
+        '20251023T180000:t=dailies',
+        '20251024T090000:t=dailies',
+        '20251024T130000:t=dailies',
+        '20251024T180000:t=dailies',
+        '20251025T120000',
+        '20251025T130000:t=dailies',
+        '20251025T140000:t=hourly',
+        '20251025T150000:t=hourly',
+        '20251025T160000:t=hourly']),
+      '--receiver', ','.join([
+        '20251023T130000',
+        '20251023T180000:p=20251023T130000',
+        '20251024T090000:p=20251023T180000',
+        '20251024T130000:p=20251024T090000',
+        '20251024T180000:p=20251024T130000',
+        '20251025T120000:p=20251024T180000',
+        '20251025T130000:p=20251025T120000']),
+      '--expected', ','.join([
+        '20251023T130000',
+        '20251023T180000:p=20251023T130000',
+        '20251024T090000:p=20251023T180000',
+        '20251024T130000:p=20251024T090000',
+        '20251024T180000:p=20251024T130000',
+        '20251025T120000:p=20251024T180000',
+        '20251025T130000:p=20251025T120000',
+        '20251025T160000:p=20251025T130000']),
+      '--type', 'denotebak',
+    ],
+    'baksnapper-args': [
+      baksnapper[0].full_path(),
+      '--daemon', baksnapperd_denotebak[0].full_path(),
+    ],
+    'configfile': 'denotebak-default',
+    'configfile-baksnapper-args': [],
+    'suite': ['denotebak', 'backup'],
+    'depends': [baksnapperd_denotebak],
+    'env': denotebak_test_env,
+  },
+  {
+    'name': 'denotebak-backup-all-with-right-parent',
+    'runner-args': [
+      '--sender', ','.join([
+        '20251023T130000:t=dailies',
+        '20251023T180000:t=dailies',
+        '20251024T090000:t=dailies',
+        '20251024T130000:t=dailies',
+        '20251024T180000:t=dailies',
+        '20251025T120000',
+        '20251025T130000:t=dailies',
+        '20251025T140000:t=hourly',
+        '20251025T150000:t=hourly',
+        '20251025T160000:t=hourly']),
+      '--receiver', ','.join([
+        '20251023T130000',
+        '20251023T180000:p=20251023T130000',
+        '20251024T090000:p=20251023T180000',
+        '20251024T130000:p=20251024T090000',
+        '20251024T180000:p=20251024T130000',
+        '20251025T120000:p=20251024T180000',
+        '20251025T130000:p=20251025T120000']),
+      '--expected', ','.join([
+        '20251023T130000',
+        '20251023T180000:p=20251023T130000',
+        '20251024T090000:p=20251023T180000',
+        '20251024T130000:p=20251024T090000',
+        '20251024T180000:p=20251024T130000',
+        '20251025T120000:p=20251024T180000',
+        '20251025T130000:p=20251025T120000',
+        '20251025T140000:p=20251025T130000',
+        '20251025T150000:p=20251025T140000',
+        '20251025T160000:p=20251025T150000']),
+      '--type', 'denotebak',
+    ],
+    'baksnapper-args': [
+      baksnapper[0].full_path(),
+      '--daemon', baksnapperd_denotebak[0].full_path(),
+      '--all',
+    ],
+    'configfile': 'denotebak-all',
+    'configfile-baksnapper-args': [],
+    'suite': ['denotebak', 'backup'],
+    'depends': [baksnapperd_denotebak],
+    'env': denotebak_test_env,
+  },
 ]
   foreach conf: [
     {
