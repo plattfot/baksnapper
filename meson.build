@@ -132,6 +132,7 @@ foreach test_entry: [
     'configfile-baksnapper-args': [],
     'suite': ['backup'],
     'depends': [baksnapperd],
+    'env': test_env,
   },
   {
     'name': 'latest',
@@ -149,6 +150,7 @@ foreach test_entry: [
     'configfile-baksnapper-args': [],
     'suite': ['latest'],
     'depends': [baksnapperd],
+    'env': test_env,
   },
   {
     'name': 'prune',
@@ -166,6 +168,7 @@ foreach test_entry: [
     'configfile-baksnapper-args': [],
     'suite': ['prune'],
     'depends': [baksnapperd],
+    'env': test_env,
   },
   {
     'name': 'backup-2',
@@ -182,6 +185,7 @@ foreach test_entry: [
     'configfile-baksnapper-args': [],
     'suite': ['backup'],
     'depends': [baksnapperd],
+    'env': test_env,
   },
   {
     'name': 'delete-1',
@@ -199,6 +203,7 @@ foreach test_entry: [
     'configfile-baksnapper-args': [],
     'suite': ['delete'],
     'depends': [baksnapperd],
+    'env': test_env,
   },
   {
     'name': 'delete-1,3',
@@ -216,6 +221,7 @@ foreach test_entry: [
     'configfile-baksnapper-args': [],
     'suite': ['delete'],
     'depends': [baksnapperd],
+    'env': test_env,
   },
   {
     'name': 'backup-with-right-parent',
@@ -232,6 +238,7 @@ foreach test_entry: [
     'configfile-baksnapper-args': [],
     'suite': ['backup'],
     'depends': [baksnapperd],
+    'env': test_env,
   },
   # https://github.com/plattfot/baksnapper/issues/27
   {
@@ -250,6 +257,7 @@ foreach test_entry: [
     'configfile-baksnapper-args': [],
     'suite': ['backup'],
     'depends': [baksnapperd],
+    'env': test_env,
   },
 ]
   foreach conf: [
@@ -372,7 +380,7 @@ foreach test_entry: [
         test(
           test_entry['name']+conf['suffix']+ssh['suffix']+ssh_key['suffix'],
           runner,
-          env: test_env,
+          env: test_entry['env'],
           args: test_entry['runner-args'] + conf['runner-args'] +
                 ssh['args'] + runner_args +
                 ['--'] +
