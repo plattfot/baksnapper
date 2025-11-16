@@ -1,4 +1,7 @@
 #! /usr/bin/env bash
+# SPDX-FileCopyrightText: 2025  Fredrik Salomonsson <plattfot@posteo.net>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 sed -E \
     -e 's/#define (.*?) (.*)/\1 = \2/' \
