@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: 2025 Fredrik Salomonsson <plattfot@posteo.net>
+
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
 # Contribute to baksnapper
 
 This document is a guide on what you should think about when contributing to baksnapper.

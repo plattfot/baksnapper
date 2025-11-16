@@ -1,0 +1,5 @@
+version = 1
+SPDX-PackageName = "baksnapper"
+SPDX-PackageSupplier = "Fredrik Salomonsson <plattfot@posteo.net>"
+SPDX-PackageDownloadLocation = "https://github.com/plattfot/baksnapper"
+annotations = []

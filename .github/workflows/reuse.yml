@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: 2025 Fredrik Salomonsson <plattfot@posteo.net>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+name: Reuse
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v5
+    - name: Install dependencies
+      run: pip3 install --upgrade reuse
+    - name:
+      run: reuse lint

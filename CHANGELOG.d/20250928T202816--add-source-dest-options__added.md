@@ -1,3 +1,5 @@
+<!-- SPDX-FileCopyrightText: 2025 Fredrik Salomonsson <plattfot@posteo.net> -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 ### Added
 - `--source SOURCE` option, to override `SOURCE=` in configfile.
 - `--dest DEST` option, to override `DEST=` in configfile.
