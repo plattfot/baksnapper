@@ -12,6 +12,25 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Unreleased entries are located in [CHANGELOG.d](./CHANGELOG.d).
 
+## [2.4.1] - 2025-11-16
+### Added
+- Interface to specify `SOURCE` and `DEST` explicitly.
+- `--source SOURCE` option, to override `SOURCE=` in configfile.
+- `--dest DEST` option, to override `DEST=` in configfile.
+- `SOURCE=` configfile option.
+- `DEST=` configfile option.
+- `--src-private-key` to set the ssh private key for `SOURCE`.
+- `--dest-private-key` to set the ssh private key for `DEST`.
+- [DeNotebak](https://sr.ht/~plattfot/DeNotebak/) backend support. [#45](https://github.com/plattfot/baksnapper/issues/45)
+### Changed
+- `--private-key` now also sets ssh private key for `SOURCE` and `DEST`.
+- Rename `create-config` to `create-location`. [#45](https://github.com/plattfot/baksnapper/issues/45)
+- Bump `baksnapperd` API version to 4. [#45](https://github.com/plattfot/baksnapper/issues/45)
+### Deprecated
+- `--config` and `--type` options.
+### Fixed
+- `build-aux/version --short` does not work.
+
 ## [2.4.1] - 2025-06-09
 ### Fixed
 - Backing up snapshot with the wrong parent. [#27](https://github.com/plattfot/baksnapper/issues/27)
