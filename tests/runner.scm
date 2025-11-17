@@ -409,6 +409,22 @@ Evaluates to #t if everything is good."
          (null-list? missing-expected)
          (check-latest expected-latest receiver-dir))))
 
+(define (clean-up test-dir)
+  "Remove everything in TEST-DIR."
+  (nftw test-dir
+        (lambda (filename statinfo flag base level)
+          (match flag
+            ('directory-processed (rmdir filename))
+            ((or 'regular symlink) (delete-file filename))
+            (_ (format
+                (current-error-port)
+                "cannot clean up file: ~a of type ~a~%"
+                filename
+                statinfo)))
+          #t)
+        'depth
+        'physical))
+
 (define (main args)
   (let* ((option-spec
           `((config (single-char #\c) (value #t))
@@ -593,18 +609,7 @@ Fredrik \"PlaTFooT\" Salomonsson
           (set! exit-status 1))
 
         ;; Clean up
-        (nftw test-dir
-              (lambda (filename statinfo flag base level)
-                (match flag
-                  ('directory-processed (rmdir filename))
-                  ((or 'regular symlink) (delete-file filename))
-                  (_ (format
-                      (current-error-port)
-                      "cannot clean up file: ~a of type ~a~%"
-                      filename
-                      statinfo)))
-                #t)
-              'depth
-              'physical)
+        (clean-up test-dir)
+
         (exit exit-status)))))
 
