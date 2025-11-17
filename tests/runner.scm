@@ -337,6 +337,78 @@ Return the path to the modified CONFIGFILE if it is defined otherwise #f."
       test-config-file)
     #f))
 
+(define (check receiver-dir expected-snapshots expected-latest make-snapshot-from-read)
+  "Check the resulting snapshots lines up with the expected result.
+
+RECEIVER-DIR: the directory where the receiver snapshots are.
+
+EXPECTED-SNAPSHOTS: List of expected snapshots
+
+EXPECTED-LATEST: boolean if it should check for the latest link or not.
+
+MAKE-SNAPSHOT-FROM-READ: Procedure to create snapshots from reading
+data on disk.
+
+Evaluates to #t if everything is good."
+  (let* ((result-snapshots
+          (alist->hash-table
+           (assq-remove!
+            (map (lambda (data)
+                   (let ((snapshot (make-snapshot-from-read data)))
+                     (cons (snapshot-id snapshot) snapshot)))
+                 (cdr (read-snapshots
+                       (cons (dirname receiver-dir)
+                             (file-system-tree receiver-dir)))))
+            'latest)))
+         (mismatch-result
+          (hash-fold
+           (lambda (id snapshot mismatch)
+             (match (hash-get-handle expected-snapshots id)
+               (#f (cons (cons snapshot #f) mismatch))
+               ((id . expected-snapshot)
+                (if (equal? snapshot expected-snapshot)
+                    mismatch
+                    (cons (cons snapshot expected-snapshot) mismatch)))))
+           '()
+           result-snapshots))
+         (missing-expected
+          (hash-fold
+           (lambda (id snapshot mismatch)
+             (if (hash-get-handle result-snapshots id)
+                 mismatch
+                 (cons snapshot mismatch)))
+           '()
+           expected-snapshots)))
+    (for-each
+     (match-lambda
+       ((($ <snapshot> result-id result-parent result-state) . #f)
+        (format (current-error-port)
+                "[FAIL] Snapshot ~a exists → p:~a s:~a~%"
+                result-id result-parent result-state))
+       ((($ <snapshot> result-id result-parent result-state) .
+         ($ <snapshot> expected-id expected-parent expected-state))
+        (format (current-error-port)
+                "[FAIL] Snapshot `~a` differs~%" result-id)
+        (when (not (equal? result-parent expected-parent))
+          (format (current-error-port)
+                  "  → parent is `~a` expected `~a`~%"
+                  result-parent expected-parent))
+        (when (not (equal? result-state expected-state))
+          (format (current-error-port)
+                  "  → state is `~a` expected `~a`~%"
+                  result-state expected-state))))
+     mismatch-result)
+    (for-each
+     (match-lambda
+       (($ <snapshot> expected-id expected-parent expected-state)
+        (format (current-error-port)
+                "[FAIL] Expected snapshot `~a` to exists with parent `~a` and state `~a`~%"
+                expected-id expected-parent expected-state)))
+     missing-expected)
+    (and (null-list? mismatch-result)
+         (null-list? missing-expected)
+         (check-latest expected-latest receiver-dir))))
+
 (define (main args)
   (let* ((option-spec
           `((config (single-char #\c) (value #t))
@@ -514,67 +586,11 @@ Fredrik \"PlaTFooT\" Salomonsson
             (set! exit-status (status:exit-val (close-pipe pipe)))))
 
         ;; Check
-        (let* ((result-snapshots
-                (alist->hash-table
-                 (assq-remove!
-                  (map (lambda (data)
-                         (let ((snapshot (make-snapshot-from-read data)))
-                           (cons (snapshot-id snapshot) snapshot)))
-                       (cdr (read-snapshots
-                             (cons (dirname receiver-dir)
-                                   (file-system-tree receiver-dir)))))
-                  'latest)))
-               (mismatch-result
-                (hash-fold
-                 (lambda (id snapshot mismatch)
-                   (match (hash-get-handle expected-snapshots id)
-                     (#f (cons (cons snapshot #f) mismatch))
-                     ((id . expected-snapshot)
-                      (if (equal? snapshot expected-snapshot)
-                          mismatch
-                          (cons (cons snapshot expected-snapshot) mismatch)))))
-                 '()
-                 result-snapshots))
-               (missing-expected
-                (hash-fold
-                 (lambda (id snapshot mismatch)
-                   (if (hash-get-handle result-snapshots id)
-                       mismatch
-                       (cons snapshot mismatch)))
-                 '()
-                 expected-snapshots)))
-          (for-each
-           (match-lambda
-             ((($ <snapshot> result-id result-parent result-state) . #f)
-              (format (current-error-port)
-                      "[FAIL] Snapshot ~a exists → p:~a s:~a~%"
-                      result-id result-parent result-state))
-             ((($ <snapshot> result-id result-parent result-state) .
-               ($ <snapshot> expected-id expected-parent expected-state))
-              (format (current-error-port)
-                      "[FAIL] Snapshot `~a` differs~%" result-id)
-              (when (not (equal? result-parent expected-parent))
-                (format (current-error-port)
-                        "  → parent is `~a` expected `~a`~%"
-                        result-parent expected-parent))
-              (when (not (equal? result-state expected-state))
-                (format (current-error-port)
-                        "  → state is `~a` expected `~a`~%"
-                        result-state expected-state))))
-           mismatch-result)
-          (for-each
-           (match-lambda
-             (($ <snapshot> expected-id expected-parent expected-state)
-              (format (current-error-port)
-                       "[FAIL] Expected snapshot `~a` to exists with parent `~a` and state `~a`~%"
-                       expected-id expected-parent expected-state)))
-           missing-expected)
-          (when (or (not (null-list? mismatch-result))
-                    (not (null-list? missing-expected))
-                    (not (check-latest
+        (when (not (check receiver-dir
+                          expected-snapshots
                           (option-ref options 'expected-latest #f)
-                          receiver-dir)))
-            (set! exit-status 1)))
+                          make-snapshot-from-read))
+          (set! exit-status 1))
 
         ;; Clean up
         (nftw test-dir
