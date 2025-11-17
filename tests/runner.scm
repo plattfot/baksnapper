@@ -597,6 +597,7 @@ Fredrik \"PlaTFooT\" Salomonsson
               (remove string-null? (string-split (option-ref options input "")  #\,))))
            (type (string->symbol (option-ref options 'type "snapper")))
            (config (option-ref options 'config "root"))
+           (configfile (option-ref options 'configfile #f))
            (sender (parse-comma-option 'sender))
            (receiver (parse-comma-option 'receiver))
            (expected (parse-comma-option 'expected))
@@ -605,14 +606,7 @@ Fredrik \"PlaTFooT\" Salomonsson
                                (string-trim-right (or (getenv "TEMP") "/tmp") #\/)
                                "baksnapper-test-XXXXXX")))
            (sender-dir (path-join test-dir config ".snapshots"))
-           (receiver-dir (path-join test-dir "receiver" config))
-           (configfile (option-ref options 'configfile #f))
-           (create-snapshot-func (match type
-                                   ('denotebak create-denotebak-snapshot)
-                                   (_ create-snapper-snapshot)))
-           (make-snapshot-from-read (match type
-                                   ('denotebak make-snapshot-from-denotebak-read)
-                                   (_ make-snapshot-from-snapper-read))))
+           (receiver-dir (path-join test-dir "receiver" config)))
       ;; Needed for nftw to be able to read the directory
       (chmod test-dir #o744)
       (format #t "Test ~a~%" test-dir)
@@ -640,7 +634,9 @@ Fredrik \"PlaTFooT\" Salomonsson
                receiver-snapshots
                receiver-dir
                (option-ref options 'latest #f)
-               create-snapshot-func)
+               (match type
+                 ('denotebak create-denotebak-snapshot)
+                 (_ create-snapper-snapshot)))
 
         ;; Run command
         (set! exit-status
@@ -650,7 +646,9 @@ Fredrik \"PlaTFooT\" Salomonsson
         (when (not (check receiver-dir
                           expected-snapshots
                           (option-ref options 'expected-latest #f)
-                          make-snapshot-from-read))
+                          (match type
+                            ('denotebak make-snapshot-from-denotebak-read)
+                            (_ make-snapshot-from-snapper-read))))
           (set! exit-status 1))
 
         ;; Clean up
