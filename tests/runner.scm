@@ -613,8 +613,7 @@ Fredrik \"PlaTFooT\" Salomonsson
       (format #t "  sender:   ~a~%" sender)
       (format #t "  receiver: ~a~%" receiver)
       (format #t "  expected: ~a~%" expected)
-      (let ((exit-status 0)
-            (sender-snapshots
+      (let ((sender-snapshots
              (map (lambda (input)
                     (make-snapshot-from input))
                   sender))
@@ -628,7 +627,6 @@ Fredrik \"PlaTFooT\" Salomonsson
                      (let ((snapshot (make-snapshot-from input)))
                        (cons (snapshot-id snapshot) snapshot)))
                    expected))))
-        ;; Setup
         (setup sender-snapshots
                sender-dir
                receiver-snapshots
@@ -637,22 +635,13 @@ Fredrik \"PlaTFooT\" Salomonsson
                (match type
                  ('denotebak create-denotebak-snapshot)
                  (_ create-snapper-snapshot)))
-
-        ;; Run command
-        (set! exit-status
-              (run command configfile options test-dir sender-dir receiver-dir))
-
-        ;; Check
-        (when (not (check receiver-dir
-                          expected-snapshots
-                          (option-ref options 'expected-latest #f)
-                          (match type
-                            ('denotebak make-snapshot-from-denotebak-read)
-                            (_ make-snapshot-from-snapper-read))))
-          (set! exit-status 1))
-
-        ;; Clean up
-        (clean-up test-dir)
-
-        (exit exit-status)))))
+        (exit (and
+               (= (run command configfile options test-dir sender-dir receiver-dir) 0)
+               (check receiver-dir
+                      expected-snapshots
+                      (option-ref options 'expected-latest #f)
+                      (match type
+                        ('denotebak make-snapshot-from-denotebak-read)
+                        (_ make-snapshot-from-snapper-read)))
+               (clean-up test-dir)))))))
 
