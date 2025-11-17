@@ -337,6 +337,59 @@ Return the path to the modified CONFIGFILE if it is defined otherwise #f."
       test-config-file)
     #f))
 
+(define (run command configfile options test-dir sender-dir receiver-dir)
+  "Run COMMAND and return the exit status.
+
+CONFIGFILE is either a path to a config file or #f if not set.
+
+OPTIONS are the cli options from main.
+
+TEST-DIR is the root of the current test.
+
+SENDER-DIR is the path to the sender directory.
+
+RECEIVER-DIR is the path to the receiver directory.
+"
+  (let* ((append-ssh (lambda (address dir)
+                             (if address
+                                 (string-append address ":" dir)
+                                 dir)))
+               (if-set (lambda (check value)
+                        (if check value '())))
+               (prefix-if-set (lambda (check prefix value)
+                                (if check (list prefix value) (list value))))
+               (test-config-file (configure-config-file
+                                  configfile
+                                  options
+                                  test-dir
+                                  sender-dir
+                                  receiver-dir))
+               (command-with-path
+                (append
+                 command
+                 (if-set test-config-file (list "--configfile" test-config-file))
+                 (if (option-ref options 'src-dest #f)
+                     (append
+                      (if-set (not (option-ref options 'src-config #f))
+                              (prefix-if-set
+                               (option-ref options 'dest-config #f)
+                               "--source"
+                               (append-ssh (option-ref options 'src-ssh #f) sender-dir)))
+                      (if-set (not (option-ref options 'dest-config #f))
+                              (prefix-if-set
+                               (option-ref options 'src-config #f)
+                               "--dest"
+                               (append-ssh (option-ref options 'dest-ssh #f) receiver-dir))))
+                     (if-set
+                      (not (option-ref options 'path-config #f))
+                      (list (append-ssh (option-ref options 'dest-ssh #f)
+                                        (dirname receiver-dir))))))))
+          (format #t "Running command: ~a…~%" command-with-path)
+          (setenv "BAKSNAPPER_TEST_RUNNER_SENDER_ROOT" test-dir)
+          (let ((pipe (apply open-pipe* OPEN_READ command-with-path)))
+            (format #t "~a~%" (get-string-all pipe))
+            (status:exit-val (close-pipe pipe)))))
+
 (define (check receiver-dir expected-snapshots expected-latest make-snapshot-from-read)
   "Check the resulting snapshots lines up with the expected result.
 
@@ -510,8 +563,7 @@ Fredrik \"PlaTFooT\" Salomonsson
                                (string-trim-right (or (getenv "TEMP") "/tmp") #\/)
                                "baksnapper-test-XXXXXX")))
            (sender-dir (path-join test-dir config ".snapshots"))
-           (receiver-root-dir (path-join test-dir "receiver"))
-           (receiver-dir (path-join receiver-root-dir config))
+           (receiver-dir (path-join test-dir "receiver" config))
            (configfile (option-ref options 'configfile #f))
            (create-snapshot-func (match type
                                    ('denotebak create-denotebak-snapshot)
@@ -561,45 +613,10 @@ Fredrik \"PlaTFooT\" Salomonsson
          receiver-snapshots)
         (and-let* ((latest (option-ref options 'latest #f)))
           (symlinkat receiver-dir latest "latest"))
+
         ;; Run command
-        (let* ((append-ssh (lambda (address dir)
-                             (if address
-                                 (string-append address ":" dir)
-                                 dir)))
-               (if-set (lambda (check value)
-                        (if check value '())))
-               (prefix-if-set (lambda (check prefix value)
-                                (if check (list prefix value) (list value))))
-               (test-config-file (configure-config-file
-                                  configfile
-                                  options
-                                  test-dir
-                                  sender-dir
-                                  receiver-dir))
-               (command-with-path
-                (append
-                 command
-                 (if-set test-config-file (list "--configfile" test-config-file))
-                 (if (option-ref options 'src-dest #f)
-                     (append
-                      (if-set (not (option-ref options 'src-config #f))
-                              (prefix-if-set
-                               (option-ref options 'dest-config #f)
-                               "--source"
-                               (append-ssh (option-ref options 'src-ssh #f) sender-dir)))
-                      (if-set (not (option-ref options 'dest-config #f))
-                              (prefix-if-set
-                               (option-ref options 'src-config #f)
-                               "--dest"
-                               (append-ssh (option-ref options 'dest-ssh #f) receiver-dir))))
-                     (if-set
-                      (not (option-ref options 'path-config #f))
-                      (list (append-ssh (option-ref options 'dest-ssh #f) receiver-root-dir)))))))
-          (format #t "Running command: ~a…~%" command-with-path)
-          (setenv "BAKSNAPPER_TEST_RUNNER_SENDER_ROOT" test-dir)
-          (let ((pipe (apply open-pipe* OPEN_READ command-with-path)))
-            (format #t "~a~%" (get-string-all pipe))
-            (set! exit-status (status:exit-val (close-pipe pipe)))))
+        (set! exit-status
+              (run command configfile options test-dir sender-dir receiver-dir))
 
         ;; Check
         (when (not (check receiver-dir
