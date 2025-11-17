@@ -337,6 +337,189 @@ Return the path to the modified CONFIGFILE if it is defined otherwise #f."
       test-config-file)
     #f))
 
+(define (setup sender-snapshots
+               sender-dir
+               receiver-snapshots
+               receiver-dir
+               latest
+               create-snapshot-proc)
+  "Create the test directory structure.
+
+SENDER-SNAPSHOTS a list of <snapshot> for the sender.
+
+SENDER-DIR is the path to the sender directory.
+
+RECEIVER-SNAPSHOTS a list of <snapshot> for the receiver.
+
+RECEIVER-DIR is the path to the receiver directory.
+
+LATEST A path to a snapshot or #f which it will create a symlink to
+named `latest`.
+
+CREATE-SNAPSHOT-PROC is a procedure to create a snapshot expects a
+path and a <snapshot>.
+"
+  (mkdir (dirname sender-dir))
+  (mkdir sender-dir)
+  (for-each
+   (lambda (snapshot)
+     (create-snapshot-proc
+      (path-join sender-dir (snapshot-id snapshot))
+      snapshot))
+   sender-snapshots)
+  ;; FIXME: write a proper mkdir -p
+  (mkdir (dirname receiver-dir))
+  (mkdir receiver-dir)
+  (for-each
+   (lambda (snapshot)
+     (create-snapshot-proc
+      (path-join receiver-dir (snapshot-id snapshot))
+      snapshot))
+   receiver-snapshots)
+  (when latest
+    (symlinkat receiver-dir latest "latest")))
+
+(define (run command configfile options test-dir sender-dir receiver-dir)
+  "Run COMMAND and return the exit status.
+
+CONFIGFILE is either a path to a config file or #f if not set.
+
+OPTIONS are the cli options from main.
+
+TEST-DIR is the root of the current test.
+
+SENDER-DIR is the path to the sender directory.
+
+RECEIVER-DIR is the path to the receiver directory.
+"
+  (let* ((append-ssh (lambda (address dir)
+                             (if address
+                                 (string-append address ":" dir)
+                                 dir)))
+               (if-set (lambda (check value)
+                        (if check value '())))
+               (prefix-if-set (lambda (check prefix value)
+                                (if check (list prefix value) (list value))))
+               (test-config-file (configure-config-file
+                                  configfile
+                                  options
+                                  test-dir
+                                  sender-dir
+                                  receiver-dir))
+               (command-with-path
+                (append
+                 command
+                 (if-set test-config-file (list "--configfile" test-config-file))
+                 (if (option-ref options 'src-dest #f)
+                     (append
+                      (if-set (not (option-ref options 'src-config #f))
+                              (prefix-if-set
+                               (option-ref options 'dest-config #f)
+                               "--source"
+                               (append-ssh (option-ref options 'src-ssh #f) sender-dir)))
+                      (if-set (not (option-ref options 'dest-config #f))
+                              (prefix-if-set
+                               (option-ref options 'src-config #f)
+                               "--dest"
+                               (append-ssh (option-ref options 'dest-ssh #f) receiver-dir))))
+                     (if-set
+                      (not (option-ref options 'path-config #f))
+                      (list (append-ssh (option-ref options 'dest-ssh #f)
+                                        (dirname receiver-dir))))))))
+          (format #t "Running command: ~a…~%" command-with-path)
+          (setenv "BAKSNAPPER_TEST_RUNNER_SENDER_ROOT" test-dir)
+          (let ((pipe (apply open-pipe* OPEN_READ command-with-path)))
+            (format #t "~a~%" (get-string-all pipe))
+            (status:exit-val (close-pipe pipe)))))
+
+(define (check receiver-dir expected-snapshots expected-latest make-snapshot-from-read)
+  "Check the resulting snapshots lines up with the expected result.
+
+RECEIVER-DIR: the directory where the receiver snapshots are.
+
+EXPECTED-SNAPSHOTS: List of expected snapshots
+
+EXPECTED-LATEST: boolean if it should check for the latest link or not.
+
+MAKE-SNAPSHOT-FROM-READ: Procedure to create snapshots from reading
+data on disk.
+
+Evaluates to #t if everything is good."
+  (let* ((result-snapshots
+          (alist->hash-table
+           (assq-remove!
+            (map (lambda (data)
+                   (let ((snapshot (make-snapshot-from-read data)))
+                     (cons (snapshot-id snapshot) snapshot)))
+                 (cdr (read-snapshots
+                       (cons (dirname receiver-dir)
+                             (file-system-tree receiver-dir)))))
+            'latest)))
+         (mismatch-result
+          (hash-fold
+           (lambda (id snapshot mismatch)
+             (match (hash-get-handle expected-snapshots id)
+               (#f (cons (cons snapshot #f) mismatch))
+               ((id . expected-snapshot)
+                (if (equal? snapshot expected-snapshot)
+                    mismatch
+                    (cons (cons snapshot expected-snapshot) mismatch)))))
+           '()
+           result-snapshots))
+         (missing-expected
+          (hash-fold
+           (lambda (id snapshot mismatch)
+             (if (hash-get-handle result-snapshots id)
+                 mismatch
+                 (cons snapshot mismatch)))
+           '()
+           expected-snapshots)))
+    (for-each
+     (match-lambda
+       ((($ <snapshot> result-id result-parent result-state) . #f)
+        (format (current-error-port)
+                "[FAIL] Snapshot ~a exists → p:~a s:~a~%"
+                result-id result-parent result-state))
+       ((($ <snapshot> result-id result-parent result-state) .
+         ($ <snapshot> expected-id expected-parent expected-state))
+        (format (current-error-port)
+                "[FAIL] Snapshot `~a` differs~%" result-id)
+        (when (not (equal? result-parent expected-parent))
+          (format (current-error-port)
+                  "  → parent is `~a` expected `~a`~%"
+                  result-parent expected-parent))
+        (when (not (equal? result-state expected-state))
+          (format (current-error-port)
+                  "  → state is `~a` expected `~a`~%"
+                  result-state expected-state))))
+     mismatch-result)
+    (for-each
+     (match-lambda
+       (($ <snapshot> expected-id expected-parent expected-state)
+        (format (current-error-port)
+                "[FAIL] Expected snapshot `~a` to exists with parent `~a` and state `~a`~%"
+                expected-id expected-parent expected-state)))
+     missing-expected)
+    (and (null-list? mismatch-result)
+         (null-list? missing-expected)
+         (check-latest expected-latest receiver-dir))))
+
+(define (clean-up test-dir)
+  "Remove everything in TEST-DIR."
+  (nftw test-dir
+        (lambda (filename statinfo flag base level)
+          (match flag
+            ('directory-processed (rmdir filename))
+            ((or 'regular symlink) (delete-file filename))
+            (_ (format
+                (current-error-port)
+                "cannot clean up file: ~a of type ~a~%"
+                filename
+                statinfo)))
+          #t)
+        'depth
+        'physical))
+
 (define (main args)
   (let* ((option-spec
           `((config (single-char #\c) (value #t))
@@ -414,6 +597,7 @@ Fredrik \"PlaTFooT\" Salomonsson
               (remove string-null? (string-split (option-ref options input "")  #\,))))
            (type (string->symbol (option-ref options 'type "snapper")))
            (config (option-ref options 'config "root"))
+           (configfile (option-ref options 'configfile #f))
            (sender (parse-comma-option 'sender))
            (receiver (parse-comma-option 'receiver))
            (expected (parse-comma-option 'expected))
@@ -422,23 +606,14 @@ Fredrik \"PlaTFooT\" Salomonsson
                                (string-trim-right (or (getenv "TEMP") "/tmp") #\/)
                                "baksnapper-test-XXXXXX")))
            (sender-dir (path-join test-dir config ".snapshots"))
-           (receiver-root-dir (path-join test-dir "receiver"))
-           (receiver-dir (path-join receiver-root-dir config))
-           (configfile (option-ref options 'configfile #f))
-           (create-snapshot-func (match type
-                                   ('denotebak create-denotebak-snapshot)
-                                   (_ create-snapper-snapshot)))
-           (make-snapshot-from-read (match type
-                                   ('denotebak make-snapshot-from-denotebak-read)
-                                   (_ make-snapshot-from-snapper-read))))
+           (receiver-dir (path-join test-dir "receiver" config)))
       ;; Needed for nftw to be able to read the directory
       (chmod test-dir #o744)
       (format #t "Test ~a~%" test-dir)
       (format #t "  sender:   ~a~%" sender)
       (format #t "  receiver: ~a~%" receiver)
       (format #t "  expected: ~a~%" expected)
-      (let ((exit-status 0)
-            (sender-snapshots
+      (let ((sender-snapshots
              (map (lambda (input)
                     (make-snapshot-from input))
                   sender))
@@ -452,143 +627,21 @@ Fredrik \"PlaTFooT\" Salomonsson
                      (let ((snapshot (make-snapshot-from input)))
                        (cons (snapshot-id snapshot) snapshot)))
                    expected))))
-        ;; Setup
-        ;; FIXME: write a proper mkdir -p
-        (mkdir (path-join test-dir config))
-        (mkdir sender-dir)
-        (for-each
-         (lambda (snapshot)
-           (create-snapshot-func
-            (path-join sender-dir (snapshot-id snapshot))
-            snapshot))
-         sender-snapshots)
-        ;; FIXME: write a proper mkdir -p
-        (mkdir (path-join test-dir "receiver"))
-        (mkdir receiver-dir)
-        (for-each
-         (lambda (snapshot)
-           (create-snapshot-func
-            (path-join receiver-dir (snapshot-id snapshot))
-            snapshot))
-         receiver-snapshots)
-        (and-let* ((latest (option-ref options 'latest #f)))
-          (symlinkat receiver-dir latest "latest"))
-        ;; Run command
-        (let* ((append-ssh (lambda (address dir)
-                             (if address
-                                 (string-append address ":" dir)
-                                 dir)))
-               (if-set (lambda (check value)
-                        (if check value '())))
-               (prefix-if-set (lambda (check prefix value)
-                                (if check (list prefix value) (list value))))
-               (test-config-file (configure-config-file
-                                  configfile
-                                  options
-                                  test-dir
-                                  sender-dir
-                                  receiver-dir))
-               (command-with-path
-                (append
-                 command
-                 (if-set test-config-file (list "--configfile" test-config-file))
-                 (if (option-ref options 'src-dest #f)
-                     (append
-                      (if-set (not (option-ref options 'src-config #f))
-                              (prefix-if-set
-                               (option-ref options 'dest-config #f)
-                               "--source"
-                               (append-ssh (option-ref options 'src-ssh #f) sender-dir)))
-                      (if-set (not (option-ref options 'dest-config #f))
-                              (prefix-if-set
-                               (option-ref options 'src-config #f)
-                               "--dest"
-                               (append-ssh (option-ref options 'dest-ssh #f) receiver-dir))))
-                     (if-set
-                      (not (option-ref options 'path-config #f))
-                      (list (append-ssh (option-ref options 'dest-ssh #f) receiver-root-dir)))))))
-          (format #t "Running command: ~a…~%" command-with-path)
-          (setenv "BAKSNAPPER_TEST_RUNNER_SENDER_ROOT" test-dir)
-          (let ((pipe (apply open-pipe* OPEN_READ command-with-path)))
-            (format #t "~a~%" (get-string-all pipe))
-            (set! exit-status (status:exit-val (close-pipe pipe)))))
-
-        ;; Check
-        (let* ((result-snapshots
-                (alist->hash-table
-                 (assq-remove!
-                  (map (lambda (data)
-                         (let ((snapshot (make-snapshot-from-read data)))
-                           (cons (snapshot-id snapshot) snapshot)))
-                       (cdr (read-snapshots
-                             (cons (dirname receiver-dir)
-                                   (file-system-tree receiver-dir)))))
-                  'latest)))
-               (mismatch-result
-                (hash-fold
-                 (lambda (id snapshot mismatch)
-                   (match (hash-get-handle expected-snapshots id)
-                     (#f (cons (cons snapshot #f) mismatch))
-                     ((id . expected-snapshot)
-                      (if (equal? snapshot expected-snapshot)
-                          mismatch
-                          (cons (cons snapshot expected-snapshot) mismatch)))))
-                 '()
-                 result-snapshots))
-               (missing-expected
-                (hash-fold
-                 (lambda (id snapshot mismatch)
-                   (if (hash-get-handle result-snapshots id)
-                       mismatch
-                       (cons snapshot mismatch)))
-                 '()
-                 expected-snapshots)))
-          (for-each
-           (match-lambda
-             ((($ <snapshot> result-id result-parent result-state) . #f)
-              (format (current-error-port)
-                      "[FAIL] Snapshot ~a exists → p:~a s:~a~%"
-                      result-id result-parent result-state))
-             ((($ <snapshot> result-id result-parent result-state) .
-               ($ <snapshot> expected-id expected-parent expected-state))
-              (format (current-error-port)
-                      "[FAIL] Snapshot `~a` differs~%" result-id)
-              (when (not (equal? result-parent expected-parent))
-                (format (current-error-port)
-                        "  → parent is `~a` expected `~a`~%"
-                        result-parent expected-parent))
-              (when (not (equal? result-state expected-state))
-                (format (current-error-port)
-                        "  → state is `~a` expected `~a`~%"
-                        result-state expected-state))))
-           mismatch-result)
-          (for-each
-           (match-lambda
-             (($ <snapshot> expected-id expected-parent expected-state)
-              (format (current-error-port)
-                       "[FAIL] Expected snapshot `~a` to exists with parent `~a` and state `~a`~%"
-                       expected-id expected-parent expected-state)))
-           missing-expected)
-          (when (or (not (null-list? mismatch-result))
-                    (not (null-list? missing-expected))
-                    (not (check-latest
-                          (option-ref options 'expected-latest #f)
-                          receiver-dir)))
-            (set! exit-status 1)))
-
-        ;; Clean up
-        (nftw test-dir
-              (lambda (filename statinfo flag base level)
-                (match flag
-                  ('directory-processed (rmdir filename))
-                  ((or 'regular symlink) (delete-file filename))
-                  (_ (format
-                      (current-error-port)
-                      "cannot clean up file: ~a of type ~a~%"
-                      filename
-                      statinfo)))
-                #t)
-              'depth
-              'physical)
-        (exit exit-status)))))
+        (setup sender-snapshots
+               sender-dir
+               receiver-snapshots
+               receiver-dir
+               (option-ref options 'latest #f)
+               (match type
+                 ('denotebak create-denotebak-snapshot)
+                 (_ create-snapper-snapshot)))
+        (exit (and
+               (= (run command configfile options test-dir sender-dir receiver-dir) 0)
+               (check receiver-dir
+                      expected-snapshots
+                      (option-ref options 'expected-latest #f)
+                      (match type
+                        ('denotebak make-snapshot-from-denotebak-read)
+                        (_ make-snapshot-from-snapper-read)))
+               (clean-up test-dir)))))))
 
