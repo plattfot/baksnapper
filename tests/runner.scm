@@ -337,6 +337,48 @@ Return the path to the modified CONFIGFILE if it is defined otherwise #f."
       test-config-file)
     #f))
 
+(define (setup sender-snapshots
+               sender-dir
+               receiver-snapshots
+               receiver-dir
+               latest
+               create-snapshot-proc)
+  "Create the test directory structure.
+
+SENDER-SNAPSHOTS a list of <snapshot> for the sender.
+
+SENDER-DIR is the path to the sender directory.
+
+RECEIVER-SNAPSHOTS a list of <snapshot> for the receiver.
+
+RECEIVER-DIR is the path to the receiver directory.
+
+LATEST A path to a snapshot or #f which it will create a symlink to
+named `latest`.
+
+CREATE-SNAPSHOT-PROC is a procedure to create a snapshot expects a
+path and a <snapshot>.
+"
+  (mkdir (dirname sender-dir))
+  (mkdir sender-dir)
+  (for-each
+   (lambda (snapshot)
+     (create-snapshot-proc
+      (path-join sender-dir (snapshot-id snapshot))
+      snapshot))
+   sender-snapshots)
+  ;; FIXME: write a proper mkdir -p
+  (mkdir (dirname receiver-dir))
+  (mkdir receiver-dir)
+  (for-each
+   (lambda (snapshot)
+     (create-snapshot-proc
+      (path-join receiver-dir (snapshot-id snapshot))
+      snapshot))
+   receiver-snapshots)
+  (when latest
+    (symlinkat receiver-dir latest "latest")))
+
 (define (run command configfile options test-dir sender-dir receiver-dir)
   "Run COMMAND and return the exit status.
 
@@ -593,26 +635,12 @@ Fredrik \"PlaTFooT\" Salomonsson
                        (cons (snapshot-id snapshot) snapshot)))
                    expected))))
         ;; Setup
-        ;; FIXME: write a proper mkdir -p
-        (mkdir (path-join test-dir config))
-        (mkdir sender-dir)
-        (for-each
-         (lambda (snapshot)
-           (create-snapshot-func
-            (path-join sender-dir (snapshot-id snapshot))
-            snapshot))
-         sender-snapshots)
-        ;; FIXME: write a proper mkdir -p
-        (mkdir (path-join test-dir "receiver"))
-        (mkdir receiver-dir)
-        (for-each
-         (lambda (snapshot)
-           (create-snapshot-func
-            (path-join receiver-dir (snapshot-id snapshot))
-            snapshot))
-         receiver-snapshots)
-        (and-let* ((latest (option-ref options 'latest #f)))
-          (symlinkat receiver-dir latest "latest"))
+        (setup sender-snapshots
+               sender-dir
+               receiver-snapshots
+               receiver-dir
+               (option-ref options 'latest #f)
+               create-snapshot-func)
 
         ;; Run command
         (set! exit-status
