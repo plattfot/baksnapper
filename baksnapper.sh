@@ -371,7 +371,7 @@ case $key in
         shift
         ;;
     -v|--verbose)
-        p_verbose=1
+        set -x
         shift
         ;;
     --version)
@@ -386,11 +386,6 @@ esac
 done
 
 ## Setup #######################################################################
-if [[ $p_verbose == 1 ]]
-then
-    set -x
-fi
-
 p_baksnapperd=${p_baksnapperd=baksnapperd}
 p_all=${p_all=0}
 
@@ -450,31 +445,26 @@ then
         sender_version=1
     fi
 
-    if [[ "$receiver_version" -gt 3 ]]
+    if [[ $receiver_version -gt 4 ]]
     then
-        error "receiver is too new, need to use version 1-3"
+        error "receiver is too new, need to use version 1-4"
     fi
 
-    if [[ "$sender_version" -gt 3 ]]
+    if [[ $sender_version -gt 4 ]]
     then
-        error "sender is too new, need to use version 1-3"
+        error "sender is too new, need to use version 1-4"
     fi
 
     # Get the subvolume to backup
-    case $sender_version in
-        2|3)
-            subvolume=$($sender get-snapper-root "$p_config")
-            ;;
-        1)
-            if ! subvolume=$($sender list-snapper-snapshots "$p_config")
-            then
-                error "Something went wrong when fetching the snapper root from sender"
-            fi
-            ;;
-        *)
-            error "Unknown version for sender '$sender_version'"
-            ;;
-    esac
+    if [[ $sender_version -ge 2 ]]
+    then
+        subvolume=$($sender get-snapper-root "$p_config")
+    else
+        if ! subvolume=$($sender list-snapper-snapshots "$p_config")
+        then
+            error "Something went wrong when fetching the snapper root from sender"
+        fi
+    fi
 
     src_root=${subvolume:?}/.snapshots
     dest_root="$dest/$p_config"
@@ -514,17 +504,17 @@ then
     setup-endpoint dest_root receiver "$p_dest" "${p_dest_ssh_args[@]}"
 
     # Get the version of the daemon
-    # 1: save the version to this variable
-    # 2: variable that contains the baksnapperd command
+    # 1 [out]: save the version to this variable
+    # 2 [in]: variable that contains the baksnapperd command
     function get-daemon-version {
         declare -n version=$1
         if ! version=$(${!2} version)
         then
             version=1
         fi
-        if [[ "$version" -gt 3 ]]
+        if [[ $version -gt 4 ]]
         then
-            error "$2 is too new, need to use version 1-3"
+            error "$2 is too new, need to use version 1-4"
         fi
     }
     get-daemon-version sender_version sender
@@ -548,7 +538,12 @@ p_temp_dir=$(mktemp -d "${TEMP:-/tmp/}$(basename "$0").XXXXX")
 p_summary="${p_temp_dir}/summary.txt"
 printf "dest_root\tsrc\tdest\tbytes\tstart\tend\tduration\n" >"${p_summary}"
 
-$receiver create-config "$dest_root" || error "Problem creating config at backup location"
+if [[ $receiver_version -ge 4 ]]
+then
+    $receiver create-location "$dest_root" || error "Problem creating backup location"
+else
+    $receiver create-config "$dest_root" || error "Problem creating config at backup location"
+fi
 
 ## Function definitions ########################################################
 
@@ -574,17 +569,12 @@ function print-statistics {
 # num_src_snapshots: the size of src_snapshots
 function gather-sender-snapshots {
     # List all the snapshots available
-    case $sender_version in
-        2|3)
-            mapfile -t src_snapshots < <($sender list-snapshots "$src_root")
-            ;;
-        1)
-            mapfile -d' ' -t src_snapshots < <($sender list-snapshots "$src_root"|tr -d '\n')
-            ;;
-        *)
-            error "Unknown version for sender '$sender_version'"
-            ;;
-    esac
+    if [[ $sender_version -ge 2 ]]
+    then
+        mapfile -t src_snapshots < <($sender list-snapshots "$src_root")
+    else
+        mapfile -d' ' -t src_snapshots < <($sender list-snapshots "$src_root"|tr -d '\n')
+    fi
     num_src_snapshots=${#src_snapshots[@]}
 }
 
@@ -593,17 +583,12 @@ function gather-sender-snapshots {
 # num_dest_snapshots: the size of dest_snapshots
 function gather-receiver-snapshots {
     # List all the snapshots at the backup location
-    case $receiver_version in
-        2|3)
-            mapfile -t dest_snapshots < <($receiver list-snapshots "$dest_root")
-            ;;
-        1)
-            mapfile -d' ' -t dest_snapshots < <($receiver list-snapshots "$dest_root"|tr -d '\n')
-            ;;
-        *)
-            error "Unknown version for receiver '$receiver_version'"
-            ;;
-    esac
+    if [[ $receiver_version -ge 2 ]]
+    then
+        mapfile -t dest_snapshots < <($receiver list-snapshots "$dest_root")
+    else
+        mapfile -d' ' -t dest_snapshots < <($receiver list-snapshots "$dest_root"|tr -d '\n')
+    fi
     num_dest_snapshots=${#dest_snapshots[@]}
 }
 
@@ -690,7 +675,7 @@ function incremental-backup {
     local duration
     start_time=$(date +%s)
 
-    echo "Incremental backup"
+    echo "Incremental backup $1 $2"
 
     $receiver create-snapshot "$dest_root" "$2" ||
         error "Failed to create snapshot at backup location!"
@@ -703,7 +688,7 @@ function incremental-backup {
 
     printf "%s\t%s\t%s\t" "${dest_root}" "${1}" "${2}" >>"${p_summary}"
     exec 4>"${p_temp_dir}/${2}"
-    if ! $sender send-incremental-snapshot "$subvolume/.snapshots/"{"$1","$2"} \
+    if ! $sender send-incremental-snapshot "$src_root/"{"$1","$2"} \
             | tee >( wc -c >&4 ) | $receiver receive-snapshot "$dest_root" "$2"
     then
         $receiver remove-broken-snapshot "$dest_root" "$1"
@@ -734,13 +719,13 @@ function backup {
 
     if [[ -z $p_snapshot ]]
     then
-        p_snapshot=${src_snapshots[num_src_snapshots-1]}
+        p_snapshot=${src_snapshots[-1]}
     else
         $sender verify-snapshot "$src_root/$p_snapshot" || exit 1
     fi
 
     local num_src_only=${#only_in_src[@]}
-    if [ "$num_src_only" -eq 0 ]
+    if [[ "$num_src_only" == 0 ]]
     then
         echo "Already backed up all snapshots"
         return 0
@@ -777,7 +762,7 @@ function backup {
     fi
 
     # If source only contained one snapshot, then we are done.
-    if [ "$num_src_only" -eq 0 ]
+    if [[ "$num_src_only" == 0 ]]
     then
         return 0
     fi

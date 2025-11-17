@@ -174,7 +174,7 @@ incomplete.  It will have both `info.xml` and `snapshot`.  But the
 (define (make-snapshot-from-read data)
   "Create a snapshot from DATA.
 
-Where DATA is in the format of what you get calling `read-snatshots'."
+Where DATA is in the format of what you get calling `read-snapshots'."
   (let* ((id (car data))
          (get (lambda (key alist default)
                 (match (assoc key alist)
