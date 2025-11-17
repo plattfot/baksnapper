@@ -30,6 +30,16 @@ baksnapperd = custom_target(
   install_tag: 'runtime',
 )
 
+baksnapperd_denotebak = custom_target(
+  command: [install_cmd, '@INPUT@', '@OUTPUT@'],
+  input: 'baksnapperd-denotebak.sh',
+  output: 'baksnapperd-denotebak',
+  install: true,
+  install_dir: 'bin',
+  install_mode: 'rwxr-xr-x',
+  install_tag: 'runtime',
+)
+
 bsconf_root = get_option('bsconf-root')
 if bsconf_root == ''
   bsconf_root = get_option('sysconfdir')
@@ -82,6 +92,9 @@ test_env.set('MOCK_SSH_CONNECTION', '0')
 test_env.set('MOCK_SSH_KEY', 'foo.key=foo.example.com:bar.key=bar.example.com')
 test_env.set('MOCK_SSH_BAKSNAPPERD', baksnapperd[0].full_path())
 
+denotebak_test_env = test_env
+denotebak_test_env.set('MOCK_SSH_BAKSNAPPERD', baksnapperd_denotebak[0].full_path())
+
 runner = find_program('./tests/runner.scm')
 
 test_configuration = {
@@ -106,191 +119,473 @@ test_configuration = {
     'ALL': 'YES',
     'VERBOSE': 'NO',
   },
+  'denotebak-default': {
+    'DAEMON': baksnapperd_denotebak[0].full_path(),
+  },
+  'denotebak-latest': {
+    'DAEMON': baksnapperd_denotebak[0].full_path(),
+    'PRUNE': 'NO',
+    'ALL': 'NO',
+    'VERBOSE': 'NO',
+    'LINK': 'YES',
+  },
+  'denotebak-prune': {
+    'DAEMON': baksnapperd_denotebak[0].full_path(),
+    'PRUNE': 'YES',
+    'ALL': 'NO',
+    'VERBOSE': 'NO',
+  },
+  'denotebak-all': {
+    'DAEMON': baksnapperd_denotebak[0].full_path(),
+    'ALL': 'YES',
+    'VERBOSE': 'NO',
+  },
 }
-foreach conf: [
+foreach test_entry: [
   {
-    'suffix': '-config',
-    'runner-args': [],
-    'baksnapper-args': ['--config', 'root'],
-    'configfile': false,
-    'suite': ['config'],
+    'name': 'default',
+    'runner-args': [
+      '--sender', '1,2,3',
+      '--expected', '3',
+    ],
+    'baksnapper-args': [
+      baksnapper[0].full_path(),
+      '--daemon', baksnapperd[0].full_path(),
+    ],
+    'configfile': 'default',
+    'configfile-baksnapper-args': [],
+    'suite': ['backup'],
+    'depends': [baksnapperd],
+    'env': test_env,
   },
   {
-    'suffix': '-src-dest',
-    'runner-args': ['--src-dest'],
-    'baksnapper-args': [],
-    'configfile': false,
-    'suite': ['src-dest'],
+    'name': 'latest',
+    'runner-args': [
+      '--sender', '1,2,3',
+      '--expected', '3',
+      '--expected-latest', '3',
+    ],
+    'baksnapper-args': [
+      baksnapper[0].full_path(),
+      '--daemon', baksnapperd[0].full_path(),
+      '--link',
+    ],
+    'configfile': 'latest',
+    'configfile-baksnapper-args': [],
+    'suite': ['latest'],
+    'depends': [baksnapperd],
+    'env': test_env,
   },
   {
-    'suffix': '-configfile',
-    'runner-args': [],
-    'baksnapper-args': [],
-    'configfile': true,
-    'suite': ['configfile'],
+    'name': 'prune',
+    'runner-args': [
+      '--sender', '1,2,3,6,7,8',
+      '--receiver', '1,2,3,4,5,6',
+      '--expected', '1,2,3,6,8:p=6',
+    ],
+    'baksnapper-args': [
+      baksnapper[0].full_path(),
+      '--daemon', baksnapperd[0].full_path(),
+      '--prune',
+    ],
+    'configfile': 'prune',
+    'configfile-baksnapper-args': [],
+    'suite': ['prune'],
+    'depends': [baksnapperd],
+    'env': test_env,
   },
   {
-    'suffix': '-configfile-path',
-    'runner-args': ['--path-config'],
-    'baksnapper-args': [],
-    'configfile': true,
-    'suite': ['configfile', 'config'],
+    'name': 'backup-2',
+    'runner-args': [
+      '--sender', '1,2,3',
+      '--expected', '2',
+    ],
+    'baksnapper-args': [
+      baksnapper[0].full_path(),
+      '--daemon', baksnapperd[0].full_path(),
+      '--snapshot', '2',
+    ],
+    'configfile': 'default',
+    'configfile-baksnapper-args': [],
+    'suite': ['backup'],
+    'depends': [baksnapperd],
+    'env': test_env,
   },
   {
-    'suffix': '-configfile-src-dest',
-    'runner-args': ['--src-dest'],
-    'baksnapper-args': [],
-    'configfile': true,
-    'suite': ['configfile', 'src-dest'],
+    'name': 'delete-1',
+    'runner-args': [
+      '--sender', '1,2,3',
+      '--receiver', '1,2,3',
+      '--expected', '2,3',
+    ],
+    'baksnapper-args': [
+      baksnapper[0].full_path(),
+      '--daemon', baksnapperd[0].full_path(),
+      '--delete', '1',
+    ],
+    'configfile': 'default',
+    'configfile-baksnapper-args': [],
+    'suite': ['delete'],
+    'depends': [baksnapperd],
+    'env': test_env,
   },
   {
-    'suffix': '-configfile-src',
-    'runner-args': ['--src-dest', '--src-config'],
-    'baksnapper-args': [],
-    'configfile': true,
-    'suite': ['configfile', 'src-dest'],
+    'name': 'delete-1,3',
+    'runner-args': [
+      '--sender', '1,2,3',
+      '--receiver', '1,2,3',
+      '--expected', '2',
+    ],
+    'baksnapper-args': [
+      baksnapper[0].full_path(),
+      '--daemon', baksnapperd[0].full_path(),
+      '--delete', '1,3',
+    ],
+    'configfile': 'default',
+    'configfile-baksnapper-args': [],
+    'suite': ['delete'],
+    'depends': [baksnapperd],
+    'env': test_env,
   },
   {
-    'suffix': '-configfile-dest',
-    'runner-args': ['--src-dest', '--dest-config'],
-    'baksnapper-args': [],
-    'configfile': true,
-    'suite': ['configfile', 'src-dest'],
+    'name': 'backup-with-right-parent',
+    'runner-args': [
+      '--sender', '64,65,76,83,91,92,93',
+      '--receiver', '64,66:p=64,76:p=66,83:p=76,91:p=83,92:p=83',
+      '--expected', '64,66:p=64,76:p=66,83:p=76,91:p=83,92:p=83,93:p=92',
+    ],
+    'baksnapper-args': [
+      baksnapper[0].full_path(),
+      '--daemon', baksnapperd[0].full_path(),
+    ],
+    'configfile': 'default',
+    'configfile-baksnapper-args': [],
+    'suite': ['backup'],
+    'depends': [baksnapperd],
+    'env': test_env,
+  },
+  # https://github.com/plattfot/baksnapper/issues/27
+  {
+    'name': 'backup-all-with-right-parent',
+    'runner-args': [
+      '--sender', '64,65,76,83,91,92,93',
+      '--receiver', '64,66:p=64,76:p=66,83:p=76,91:p=83,92:p=83',
+      '--expected', '64,65:p=64,66:p=64,76:p=66,83:p=76,91:p=83,92:p=83,93:p=92',
+    ],
+    'baksnapper-args': [
+      baksnapper[0].full_path(),
+      '--daemon', baksnapperd[0].full_path(),
+      '--all',
+    ],
+    'configfile': 'all',
+    'configfile-baksnapper-args': [],
+    'suite': ['backup'],
+    'depends': [baksnapperd],
+    'env': test_env,
+  },
+  # DeNotebak
+  {
+    'name': 'denotebak-default',
+    'runner-args': [
+      '--sender', ','.join([
+        '20251023T130000:t=dailies',
+        '20251025T120000',
+        '20251025T160000:t=hourly']),
+      '--expected', ','.join([
+        '20251025T160000']),
+      '--type', 'denotebak',
+    ],
+    'baksnapper-args': [
+      baksnapper[0].full_path(),
+      '--daemon', baksnapperd_denotebak[0].full_path(),
+    ],
+    'configfile': 'denotebak-default',
+    'configfile-baksnapper-args': [],
+    'suite': ['denotebak', 'backup'],
+    'depends': [baksnapperd_denotebak],
+    'env': denotebak_test_env,
   },
   {
-    'suffix': '-configfile-both',
-    'runner-args': ['--src-dest', '--src-config', '--dest-config'],
-    'baksnapper-args': [],
-    'configfile': true,
-    'suite': ['configfile', 'src-dest'],
+    'name': 'denotebak-latest',
+    'runner-args': [
+      '--sender', ','.join([
+        '20251023T130000:t=dailies',
+        '20251025T120000',
+        '20251025T160000:t=hourly']),
+      '--expected', ','.join([
+        '20251025T160000']),
+      '--expected-latest', '20251025T160000',
+      '--type', 'denotebak',
+    ],
+    'baksnapper-args': [
+      baksnapper[0].full_path(),
+      '--daemon', baksnapperd_denotebak[0].full_path(),
+      '--link',
+    ],
+    'configfile': 'denotebak-latest',
+    'configfile-baksnapper-args': [],
+    'suite': ['denotebak', 'latest'],
+    'depends': [baksnapperd_denotebak],
+    'env': denotebak_test_env,
+  },
+  {
+    'name': 'denotebak-prune',
+    'runner-args': [
+      '--sender', ','.join([
+        '20251023T130000:t=dailies',
+        '20251025T120000',
+        '20251025T130000:t=dailies',
+        '20251025T140000:t=hourly',
+        '20251025T150000:t=hourly',
+        '20251025T160000:t=hourly']),
+      '--receiver', ','.join([
+        '20251023T130000',
+        '20251023T180000',
+        '20251024T090000',
+        '20251024T130000',
+        '20251024T180000',
+        '20251025T120000',
+        '20251025T130000']),
+      '--expected', ','.join([
+        '20251023T130000',
+        '20251025T120000',
+        '20251025T130000',
+        '20251025T160000:p=20251025T130000']),
+      '--type', 'denotebak',
+    ],
+    'baksnapper-args': [
+      baksnapper[0].full_path(),
+      '--daemon', baksnapperd_denotebak[0].full_path(),
+      '--prune',
+    ],
+    'configfile': 'denotebak-prune',
+    'configfile-baksnapper-args': [],
+    'suite': ['denotebak', 'prune'],
+    'depends': [baksnapperd_denotebak],
+    'env': denotebak_test_env,
+  },
+  {
+    'name': 'denotebak-backup-20251025T150000',
+    'runner-args': [
+      '--sender', ','.join([
+        '20251025T140000:t=hourly',
+        '20251025T150000:t=hourly',
+        '20251025T160000:t=hourly']),
+      '--expected', ','.join([
+        '20251025T150000']),
+      '--type', 'denotebak',
+    ],
+    'baksnapper-args': [
+      baksnapper[0].full_path(),
+      '--daemon', baksnapperd_denotebak[0].full_path(),
+      '--snapshot', '20251025T150000',
+    ],
+    'configfile': 'denotebak-default',
+    'configfile-baksnapper-args': [],
+    'suite': ['denotebak', 'backup'],
+    'depends': [baksnapperd_denotebak],
+    'env': denotebak_test_env,
+  },
+  {
+    'name': 'denotebak-delete-20251025T140000',
+    'runner-args': [
+      '--sender', ','.join([
+        '20251025T140000:t=hourly',
+        '20251025T150000:t=hourly',
+        '20251025T160000:t=hourly']),
+      '--receiver', ','.join([
+        '20251025T140000',
+        '20251025T150000',
+        '20251025T160000']),
+      '--expected', ','.join([
+        '20251025T150000',
+        '20251025T160000']),
+      '--type', 'denotebak',
+    ],
+    'baksnapper-args': [
+      baksnapper[0].full_path(),
+      '--daemon', baksnapperd_denotebak[0].full_path(),
+      '--delete', '20251025T140000',
+    ],
+    'configfile': 'denotebak-default',
+    'configfile-baksnapper-args': [],
+    'suite': ['denotebak', 'delete'],
+    'depends': [baksnapperd_denotebak],
+    'env': denotebak_test_env,
+  },
+  {
+    'name': 'denotebak-delete-20251025T140000,20251025T160000',
+    'runner-args': [
+      '--sender', ','.join([
+        '20251025T140000:t=hourly',
+        '20251025T150000:t=hourly',
+        '20251025T160000:t=hourly']),
+      '--receiver', ','.join([
+        '20251025T140000:t=hourly',
+        '20251025T150000',
+        '20251025T160000']),
+      '--expected', ','.join([
+        '20251025T150000']),
+      '--type', 'denotebak',
+    ],
+    'baksnapper-args': [
+      baksnapper[0].full_path(),
+      '--daemon', baksnapperd_denotebak[0].full_path(),
+      '--delete', '20251025T140000,20251025T160000',
+    ],
+    'configfile': 'denotebak-default',
+    'configfile-baksnapper-args': [],
+    'suite': ['denotebak', 'delete'],
+    'depends': [baksnapperd_denotebak],
+    'env': denotebak_test_env,
+  },
+  {
+    'name': 'denotebak-backup-with-right-parent',
+    'runner-args': [
+      '--sender', ','.join([
+        '20251023T130000:t=dailies',
+        '20251023T180000:t=dailies',
+        '20251024T090000:t=dailies',
+        '20251024T130000:t=dailies',
+        '20251024T180000:t=dailies',
+        '20251025T120000',
+        '20251025T130000:t=dailies',
+        '20251025T140000:t=hourly',
+        '20251025T150000:t=hourly',
+        '20251025T160000:t=hourly']),
+      '--receiver', ','.join([
+        '20251023T130000',
+        '20251023T180000:p=20251023T130000',
+        '20251024T090000:p=20251023T180000',
+        '20251024T130000:p=20251024T090000',
+        '20251024T180000:p=20251024T130000',
+        '20251025T120000:p=20251024T180000',
+        '20251025T130000:p=20251025T120000']),
+      '--expected', ','.join([
+        '20251023T130000',
+        '20251023T180000:p=20251023T130000',
+        '20251024T090000:p=20251023T180000',
+        '20251024T130000:p=20251024T090000',
+        '20251024T180000:p=20251024T130000',
+        '20251025T120000:p=20251024T180000',
+        '20251025T130000:p=20251025T120000',
+        '20251025T160000:p=20251025T130000']),
+      '--type', 'denotebak',
+    ],
+    'baksnapper-args': [
+      baksnapper[0].full_path(),
+      '--daemon', baksnapperd_denotebak[0].full_path(),
+    ],
+    'configfile': 'denotebak-default',
+    'configfile-baksnapper-args': [],
+    'suite': ['denotebak', 'backup'],
+    'depends': [baksnapperd_denotebak],
+    'env': denotebak_test_env,
+  },
+  {
+    'name': 'denotebak-backup-all-with-right-parent',
+    'runner-args': [
+      '--sender', ','.join([
+        '20251023T130000:t=dailies',
+        '20251023T180000:t=dailies',
+        '20251024T090000:t=dailies',
+        '20251024T130000:t=dailies',
+        '20251024T180000:t=dailies',
+        '20251025T120000',
+        '20251025T130000:t=dailies',
+        '20251025T140000:t=hourly',
+        '20251025T150000:t=hourly',
+        '20251025T160000:t=hourly']),
+      '--receiver', ','.join([
+        '20251023T130000',
+        '20251023T180000:p=20251023T130000',
+        '20251024T090000:p=20251023T180000',
+        '20251024T130000:p=20251024T090000',
+        '20251024T180000:p=20251024T130000',
+        '20251025T120000:p=20251024T180000',
+        '20251025T130000:p=20251025T120000']),
+      '--expected', ','.join([
+        '20251023T130000',
+        '20251023T180000:p=20251023T130000',
+        '20251024T090000:p=20251023T180000',
+        '20251024T130000:p=20251024T090000',
+        '20251024T180000:p=20251024T130000',
+        '20251025T120000:p=20251024T180000',
+        '20251025T130000:p=20251025T120000',
+        '20251025T140000:p=20251025T130000',
+        '20251025T150000:p=20251025T140000',
+        '20251025T160000:p=20251025T150000']),
+      '--type', 'denotebak',
+    ],
+    'baksnapper-args': [
+      baksnapper[0].full_path(),
+      '--daemon', baksnapperd_denotebak[0].full_path(),
+      '--all',
+    ],
+    'configfile': 'denotebak-all',
+    'configfile-baksnapper-args': [],
+    'suite': ['denotebak', 'backup'],
+    'depends': [baksnapperd_denotebak],
+    'env': denotebak_test_env,
   },
 ]
-  foreach test_entry: [
+  foreach conf: [
     {
-      'name': 'default',
-      'runner-args': [
-        '--sender', '1,2,3',
-        '--expected', '3',
-      ],
-      'baksnapper-args': [
-        baksnapper[0].full_path(),
-        '--daemon', baksnapperd[0].full_path(),
-      ],
-      'configfile': 'default',
-      'configfile-baksnapper-args': [],
-      'suite': ['backup'],
+      'suffix': '-config',
+      'runner-args': [],
+      'baksnapper-args': ['--config', 'root'],
+      'configfile': false,
+      'suite': ['config'],
     },
     {
-      'name': 'latest',
-      'runner-args': [
-        '--sender', '1,2,3',
-        '--expected', '3',
-        '--expected-latest', '3',
-      ],
-      'baksnapper-args': [
-        baksnapper[0].full_path(),
-        '--daemon', baksnapperd[0].full_path(),
-        '--link',
-      ],
-      'configfile': 'latest',
-      'configfile-baksnapper-args': [],
-      'suite': ['latest'],
+      'suffix': '-src-dest',
+      'runner-args': ['--src-dest'],
+      'baksnapper-args': [],
+      'configfile': false,
+      'suite': ['src-dest'],
     },
     {
-      'name': 'prune',
-      'runner-args': [
-        '--sender', '1,2,3,6,7,8',
-        '--receiver', '1,2,3,4,5,6',
-        '--expected', '1,2,3,6,8:p=6',
-      ],
-      'baksnapper-args': [
-        baksnapper[0].full_path(),
-        '--daemon', baksnapperd[0].full_path(),
-        '--prune',
-      ],
-      'configfile': 'prune',
-      'configfile-baksnapper-args': [],
-      'suite': ['prune'],
+      'suffix': '-configfile',
+      'runner-args': [],
+      'baksnapper-args': [],
+      'configfile': true,
+      'suite': ['configfile'],
     },
     {
-      'name': 'backup-2',
-      'runner-args': [
-        '--sender', '1,2,3',
-        '--expected', '2',
-      ],
-      'baksnapper-args': [
-        baksnapper[0].full_path(),
-        '--daemon', baksnapperd[0].full_path(),
-        '--snapshot', '2',
-      ],
-      'configfile': 'default',
-      'configfile-baksnapper-args': [],
-      'suite': ['backup'],
+      'suffix': '-configfile-path',
+      'runner-args': ['--path-config'],
+      'baksnapper-args': [],
+      'configfile': true,
+      'suite': ['configfile', 'config'],
     },
     {
-      'name': 'delete-1',
-      'runner-args': [
-        '--sender', '1,2,3',
-        '--receiver', '1,2,3',
-        '--expected', '2,3',
-      ],
-      'baksnapper-args': [
-        baksnapper[0].full_path(),
-        '--daemon', baksnapperd[0].full_path(),
-        '--delete', '1',
-      ],
-      'configfile': 'default',
-      'configfile-baksnapper-args': [],
-      'suite': ['delete'],
+      'suffix': '-configfile-src-dest',
+      'runner-args': ['--src-dest'],
+      'baksnapper-args': [],
+      'configfile': true,
+      'suite': ['configfile', 'src-dest'],
     },
     {
-      'name': 'delete-1,3',
-      'runner-args': [
-        '--sender', '1,2,3',
-        '--receiver', '1,2,3',
-        '--expected', '2',
-      ],
-      'baksnapper-args': [
-        baksnapper[0].full_path(),
-        '--daemon', baksnapperd[0].full_path(),
-        '--delete', '1,3',
-      ],
-      'configfile': 'default',
-      'configfile-baksnapper-args': [],
-      'suite': ['delete'],
+      'suffix': '-configfile-src',
+      'runner-args': ['--src-dest', '--src-config'],
+      'baksnapper-args': [],
+      'configfile': true,
+      'suite': ['configfile', 'src-dest'],
     },
     {
-      'name': 'backup-with-right-parent',
-      'runner-args': [
-        '--sender', '64,65,76,83,91,92,93',
-        '--receiver', '64,66:p=64,76:p=66,83:p=76,91:p=83,92:p=83',
-        '--expected', '64,66:p=64,76:p=66,83:p=76,91:p=83,92:p=83,93:p=92',
-      ],
-      'baksnapper-args': [
-        baksnapper[0].full_path(),
-        '--daemon', baksnapperd[0].full_path(),
-      ],
-      'configfile': 'default',
-      'configfile-baksnapper-args': [],
-      'suite': ['backup'],
+      'suffix': '-configfile-dest',
+      'runner-args': ['--src-dest', '--dest-config'],
+      'baksnapper-args': [],
+      'configfile': true,
+      'suite': ['configfile', 'src-dest'],
     },
-    # https://github.com/plattfot/baksnapper/issues/27
     {
-      'name': 'backup-all-with-right-parent',
-      'runner-args': [
-        '--sender', '64,65,76,83,91,92,93',
-        '--receiver', '64,66:p=64,76:p=66,83:p=76,91:p=83,92:p=83',
-        '--expected', '64,65:p=64,66:p=64,76:p=66,83:p=76,91:p=83,92:p=83,93:p=92',
-      ],
-      'baksnapper-args': [
-        baksnapper[0].full_path(),
-        '--daemon', baksnapperd[0].full_path(),
-        '--all',
-      ],
-      'configfile': 'all',
-      'configfile-baksnapper-args': [],
-      'suite': ['backup'],
-    }
+      'suffix': '-configfile-both',
+      'runner-args': ['--src-dest', '--src-config', '--dest-config'],
+      'baksnapper-args': [],
+      'configfile': true,
+      'suite': ['configfile', 'src-dest'],
+    },
   ]
     foreach ssh: [
       {
@@ -350,10 +645,16 @@ foreach conf: [
           baksnapper_args += test_entry['configfile-baksnapper-args']
           test_depends += [test_config]
         endif
+
+        # The DeNotebak backend does not support --config
+        if 'denotebak' in test_entry['suite'] and 'src-dest' not in conf['suite']
+          continue
+        endif
+
         test(
           test_entry['name']+conf['suffix']+ssh['suffix']+ssh_key['suffix'],
           runner,
-          env: test_env,
+          env: test_entry['env'],
           args: test_entry['runner-args'] + conf['runner-args'] +
                 ssh['args'] + runner_args +
                 ['--'] +
@@ -361,8 +662,7 @@ foreach conf: [
                 ssh_key['args'] + baksnapper_args,
           depends: [
             baksnapper,
-            baksnapperd,
-          ] + test_depends,
+          ] + test_entry['depends'] + test_depends,
           suite: conf['suite'] + test_entry['suite'],
         )
       endforeach

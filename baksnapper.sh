@@ -466,6 +466,16 @@ then
         fi
     fi
 
+    if [[ $sender_version -ge 4 && $($sender snapshot-type) != "snapper" ]]
+    then
+        error "config interface only supports snapper"
+    fi
+
+    if [[ $receiver_version -ge 4 && $($receiver snapshot-type) != "snapper" ]]
+    then
+        error "config interface only supports snapper"
+    fi
+
     src_root=${subvolume:?}/.snapshots
     dest_root="$dest/$p_config"
 elif [[ -n "$p_src" && -n "$p_dest" ]]
@@ -522,6 +532,40 @@ then
 else
     error "You need to specify the SOURCE and DEST or the config name to backup!"
 fi
+
+# Get what snapshot type the daemon supports
+# 1 [out]: variable where it will save the snapshot type.
+# 2 [in]: variable that contains the baksnapperd backend
+# 3 [in]: the version of the baksnapperd backend
+function get-snapshot-type {
+    declare -n snapshot_type=$1
+    if [[ $3 -ge 4 ]]
+    then
+        snapshot_type=$(${!2} snapshot-type)
+    else
+        # shellcheck disable=SC2034
+        backend=snapper
+    fi
+}
+get-snapshot-type sender_snapshot_type sender "$sender_version"
+get-snapshot-type receiver_snapshot_type receiver "$receiver_version"
+
+# shellcheck disable=SC2154
+if [[ "$sender_snapshot_type" != "$receiver_snapshot_type" ]]
+then
+    error "Sender and receiver expects different snapshot types: sender: \
+$sender_snapshot_type, receiver: $receiver_snapshot_type"
+fi
+
+snapshot_type=$sender_snapshot_type
+
+# Using a bitmap to represent where a snapshot is located:
+# 0b01 → exist at the source
+# 0b10 → exist at the destination
+# 0b11 → exist at both locations, i.e. common
+declare -A common
+only_in_src=()
+only_in_dest=()
 
 ## Setup signals ###############################################################
 # EXIT   --> if notify-send is installed, inform the user; always cleanup
@@ -597,28 +641,20 @@ function gather-receiver-snapshots {
 # only_in_src: only exist at the source
 # only_in_dest: only exist at the destination
 function compare-snapshots {
-
     idx_src=0
     idx_dest=0
-
-    # Using a bitmap to represent where a snapshot is located:
-    # 0b01 → exist at the source
-    # 0b10 → exist at the destination
-    # 0b11 → exist at both locations, i.e. common
-    common=()
     only_in_src=()
     only_in_dest=()
-
     # NOTE: the snapshots must be sorted in ascending order hence the
     # "sort -g" when getting the snapshots.
     while (( idx_src < num_src_snapshots && idx_dest < num_dest_snapshots ))
     do
-        if [ "${src_snapshots[idx_src]}" -eq "${dest_snapshots[idx_dest]}" ]
+        if [[ "${src_snapshots[idx_src]}" == "${dest_snapshots[idx_dest]}" ]]
         then
             common["${src_snapshots[idx_src]}"]=0b11
             ((++idx_src))
             ((++idx_dest))
-        elif [ "${src_snapshots[idx_src]}" -lt "${dest_snapshots[idx_dest]}" ]
+        elif [[ "${src_snapshots[idx_src]}" < "${dest_snapshots[idx_dest]}" ]]
         then
             only_in_src+=("${src_snapshots[idx_src]}")
             ((++idx_src))
@@ -645,15 +681,17 @@ function single-backup {
     local start_time
     start_time=$(date +%s)
 
-    $receiver create-snapshot "$dest_root" "$1" ||
-        error "Failed to create snapshot at backup location!"
-
-    if ! $sender send-info "$src_root" "$1" | $receiver receive-info "$dest_root" "$1"
+    if [[ "$snapshot_type" == "snapper" ]]
     then
-        $receiver remove-broken-snapshot "$dest_root" "$1"
-        error "Failed to send snapshot info!"
-    fi
+        $receiver create-snapshot "$dest_root" "$1" ||
+            error "Failed to create snapshot at backup location!"
 
+        if ! $sender send-info "$src_root" "$1" | $receiver receive-info "$dest_root" "$1"
+        then
+            $receiver remove-broken-snapshot "$dest_root" "$1"
+            error "Failed to send snapshot info!"
+        fi
+    fi
     printf "%s\t\t%s\t" "${dest_root}" "${1}" >>"${p_summary}"
     exec 4>"${p_temp_dir}/${1}"
     if ! $sender send-snapshot "$src_root" "$1" | tee >( wc -c >&4 ) | $receiver receive-snapshot "$dest_root" "$1"
@@ -676,16 +714,17 @@ function incremental-backup {
     start_time=$(date +%s)
 
     echo "Incremental backup $1 $2"
-
-    $receiver create-snapshot "$dest_root" "$2" ||
-        error "Failed to create snapshot at backup location!"
-
-    if ! $sender send-info "$src_root" "$2" | $receiver receive-info "$dest_root" "$2"
+    if [[ "$snapshot_type" == "snapper" ]]
     then
-        $receiver remove-broken-snapshot "$dest_root" "$1"
-        error "Failed to send snapshot info!"
-    fi
+        $receiver create-snapshot "$dest_root" "$2" ||
+            error "Failed to create snapshot at backup location!"
 
+        if ! $sender send-info "$src_root" "$2" | $receiver receive-info "$dest_root" "$2"
+        then
+            $receiver remove-broken-snapshot "$dest_root" "$1"
+            error "Failed to send snapshot info!"
+        fi
+    fi
     printf "%s\t%s\t%s\t" "${dest_root}" "${1}" "${2}" >>"${p_summary}"
     exec 4>"${p_temp_dir}/${2}"
     if ! $sender send-incremental-snapshot "$src_root/"{"$1","$2"} \
@@ -767,62 +806,59 @@ function backup {
         return 0
     fi
 
+    # Find the first common snapshot that is lower than the specified
+    # snapshot.
+    #
+    # 1 [out]: parent snapshot
+    # 2 [in]: snapshot
+    function find-parent {
+        declare -n out=$1
+        local snapshot=$2
+        local idx=${num_src_snapshots}-1
+        for (( ; idx >= 0; --idx ))
+        do
+            if [[ "${src_snapshots[idx]}" < "$snapshot" && \
+                      ${common[${src_snapshots[idx]}]} == 0b11 ]]
+            then
+                break
+            fi
+        done
+        out=${src_snapshots[idx]}
+    }
+
     if [[ $p_all == 0 ]]
     then
-        local common_ids=("${!common[@]}")
-        local common_last=${common_ids[-1]}
         # Check that it's not already synced
-        if [[ "$common_last" == "$p_snapshot" ]]
+        if [[ ${common[$p_snapshot]} == 0b11 ]]
         then
-            error "Already synced the last snapshot."
+            error "Already synced snapshot $p_snapshot."
         fi
-        incremental-backup "$common_last" "$p_snapshot"
+        local parent
+        find-parent parent "$p_snapshot"
+        incremental-backup "$parent" "$p_snapshot"
         return 0
     else
-        local -a src_and_common
-        for snapshot in "${!common[@]}"
-        do
-            # These exist at both locations → 0b01
-            src_and_common["$snapshot"]=0b11
-        done
-        for snapshot in "${only_in_src[@]}"
-        do
-            # These only exist at the source → 0b01
-            src_and_common["$snapshot"]=0b01
-        done
-        local num_snapshots=${#src_and_common[@]}
         # Find the first common snapshot that is lower than the first
         # source only snapshot. This will be the start of the incremental
         # backup. If no one is found it will use the lowest common one.
-        local first_src_snapshot=${only_in_src[0]}
-        local snapshot_ids=("${!src_and_common[@]}")
-        local idx=${num_snapshots}-1
-        for (( ; idx >= 0; --idx ))
-        do
-            if [[ ${snapshot_ids[idx]} -lt $first_src_snapshot ]]
-            then
-                if [[ ${src_and_common[${snapshot_ids[idx]}]} == 0b11 ]]
-                then
-                    break
-                fi
-            fi
-        done
-        incremental-backup "${snapshot_ids[idx]}" "$first_src_snapshot"
-        src_and_common["${snapshot_ids[idx]}"]=0b11
+        first_src_snapshot="${only_in_src[0]}"
+        find-parent parent "$first_src_snapshot"
+        incremental-backup "$parent" "$first_src_snapshot"
+        common["${src_snapshots[idx]}"]=0b11
         for (( src_idx = 1; src_idx < num_src_only; ++src_idx ))
         do
-            # Find the source only snapshot in the snapshot_ids
+            # Find the next source snapshot to send
             local src_snapshot=${only_in_src[src_idx]}
-            for (( ; idx < num_snapshots; ++idx ))
+            for (( ; idx < num_src_snapshots; ++idx ))
             do
-                if [[ ${snapshot_ids[idx]} -eq $src_snapshot ]]
+                if [[ "${src_snapshots[idx]}" == "$src_snapshot" ]]
                 then
                     break
                 fi
             done
             # Use the common snapshot previous to it as the parent
-            incremental-backup "${snapshot_ids[idx-1]}" "$src_snapshot"
-            src_and_common["$src_snapshot"]=0b11
+            incremental-backup "${src_snapshots[idx-1]}" "$src_snapshot"
+            common["$src_snapshot"]=0b11
         done
     fi
 }

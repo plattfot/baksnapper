@@ -23,11 +23,12 @@
   (string-join paths file-name-separator-string))
 
 (define-record-type <snapshot>
-  (make-snapshot id parent state)
+  (make-snapshot id parent state tags)
   snapshot?
   (id snapshot-id)
   (parent snapshot-parent)
-  (state snapshot-state))
+  (state snapshot-state)
+  (tags snapshot-tags))
 
 (define (make-snapshot-from input)
   "Parse INPUT and create a snapshot from it."
@@ -37,12 +38,13 @@
           (map
            (lambda (metadatum)
              (match (string-split metadatum #\=)
-              (("p" parent) (cons 'parent parent))
-              (("s" state)
-               (let ((state-sym (string->symbol state)))
-                 (match state-sym
+               (("p" parent) (cons 'parent parent))
+               (("s" state)
+                (let ((state-sym (string->symbol state)))
+                  (match state-sym
                     ((or 'valid 'empty 'no-info 'no-snapshot 'incomplete)
-                     (cons 'state state-sym)))))))
+                     (cons 'state state-sym)))))
+               (("t" tags) (cons 'tags tags))))
            (cdr info))))
     (make-snapshot
      id
@@ -51,7 +53,64 @@
        (_ #f))
      (match (assoc 'state metadata)
        (('state . s) s)
-       (_ 'valid)))))
+       (_ 'valid))
+     (match (assoc 'state metadata)
+       (('tags . t) t)
+       (_ #f)))))
+
+(define* (create-snapshot path snapshot #:key valid?)
+  "Create a dummy snapshot at PATH.
+
+It will have the following structure:
+
+PATH[__<tags>]
+└── data
+
+The file `data` will contain; snapshot=ID, where ID is the id from
+SNAPSHOT; parent=PARENT, where PARAENT is the parent from SNAPSHOT.
+If parent is #f it will skip it.
+
+It will append the tags string to the path, separated by `__`, if that
+does not evaluate to false.
+
+It will also contain `ro=true` if VALID? evaluates to true."
+(mkdir
+ (match (snapshot-tags snapshot)
+   (#f path)
+   (tags (string-append path "__" tags))))
+
+(let ((port (open-output-file
+             (string-append path file-name-separator-string "data"))))
+  (and-let* ((parent (snapshot-parent snapshot)))
+    (format port "parent=~a~%" parent))
+  (format port "snapshot=~a~%" (snapshot-id snapshot))
+  (when valid?
+    (format port "ro=true~%"))
+  (close-port port)))
+
+(define (create-denotebak-snapshot path snapshot)
+  "Create dummy DeNotebak snapshot at PATH for SNAPSHOT.
+
+A DeNotebak snapshot is just a btrfs snapshot.  This will mock the
+structure with the following:
+
+PATH[__<tags>]
+└── data
+
+The state in SNAPSHOT specify what state it should create the
+snapshot, accepted values are:
+
+- valid: a complete snapshot as described above.  With `ro=true` added
+to the `data` file.
+
+- incomplete: a broken snapshot which snapshot directory is
+incomplete.  Which is indicated by the `ro=true` attribute will be
+missing in the `data` file."
+  (match (snapshot-state snapshot)
+    ('valid
+     (create-snapshot path snapshot #:valid? #t))
+    ('incomplete
+     (create-snapshot path snapshot #:valid? #f))))
 
 (define (create-snapper-snapshot path snapshot)
   "Create dummy snapper snapshot at PATH for SNAPSHOT.
@@ -93,35 +152,24 @@ incomplete.  It will have both `info.xml` and `snapshot`.  But the
          (create-info.xml (lambda ()
                            (close-port
                             (open-output-file
-                             (string-append path "/info.xml")))))
-         (create-snapshot (lambda* (#:key valid?)
-                            (mkdir snapshot-dir)
-                            (let ((port (open-output-file
-                                         (string-append snapshot-dir
-                                                        file-name-separator-string "data"))))
-                              (and-let* ((parent (snapshot-parent snapshot)))
-                                (format port "parent=~a~%" parent))
-                              (format port "snapshot=~a~%" (snapshot-id snapshot))
-                              (when valid?
-                                (format port "ro=true~%"))
-                              (close-port port)))))
+                             (string-append path "/info.xml"))))))
     (match (snapshot-state snapshot)
       ('valid
        (mkdir path)
        (create-info.xml)
-       (create-snapshot #:valid? #t))
+       (create-snapshot snapshot-dir snapshot #:valid? #t))
       ('empty
        (mkdir path))
       ('no-info
        (mkdir path)
-       (create-snapshot #:valid? #t))
+       (create-snapshot snapshot-dir snapshot #:valid? #t))
       ('no-snapshot
        (mkdir path)
        (create-info.xml))
       ('incomplete
        (mkdir path)
        (create-info.xml)
-       (create-snapshot #:valid? #f)))))
+       (create-snapshot snapshot-dir snapshot #:valid? #f)))))
 
 (define (check-snapshot-input value)
   "Verify the input for receiver or expected."
@@ -137,6 +185,7 @@ incomplete.  It will have both `info.xml` and `snapshot`.  But the
                   (_
                    (format (current-error-port) "unsupported state: ~a~%" state)
                    #f)))
+               (("t" tags) #t)
                (_
                 (format (current-error-port) "invalid snapshot syntax: ~a~%" metadata)
                 #f))
@@ -171,7 +220,7 @@ incomplete.  It will have both `info.xml` and `snapshot`.  But the
               (read-snapshots (cons (path-join parent name) child)))
             children)))))
 
-(define (make-snapshot-from-read data)
+(define (make-snapshot-from-snapper-read data)
   "Create a snapshot from DATA.
 
 Where DATA is in the format of what you get calling `read-snapshots'."
@@ -202,7 +251,38 @@ Where DATA is in the format of what you get calling `read-snapshots'."
        ((#t () _)
         'no-snapshot)
        (_
-        'incomplete)))))
+        'incomplete))
+     #f)))
+
+(define (make-snapshot-from-denotebak-read data)
+  "Create a snapshot from DATA.
+
+Where DATA is in the format of what you get calling `read-snapshots'."
+  (match data
+    (('latest . #t) (make-snapshot 'latest #f 'valid #f))
+    (_
+     (let* ((id (car data))
+            (get (lambda (key alist default)
+                   (match (assoc key alist)
+                     ((key . v) v)
+                     (_ default))))
+            (metadata (cadr data))
+            (snapshot-info (get "snapshot" metadata #f))
+            (read-only (match (assoc "ro" metadata)
+                         (("ro" . "true") #t)
+                         (_ #f)))
+            (parent (get "parent" metadata #f)))
+       (make-snapshot
+        id
+        parent
+        (match (list snapshot-info read-only)
+          ((#f _)
+           'no-snapshot)
+          ((snapshot #t)
+           'valid)
+          (_
+           'incomplete))
+        #f)))))
 
 (define (check-latest expected-latest receiver-dir)
   "Verify that EXPECTED-LATEST points to the expected snapshot.
@@ -260,7 +340,7 @@ Return the path to the modified CONFIGFILE if it is defined otherwise #f."
 (define (main args)
   (let* ((option-spec
           `((config (single-char #\c) (value #t))
-            (sender (single-char #\s) (value #t))
+            (sender (single-char #\s) (value #t) (predicate ,check-snapshot-input))
             (latest (single-char #\l) (value #t))
             (receiver (single-char #\r) (value #t) (predicate ,check-snapshot-input))
             (expected (single-char #\e) (value #t) (predicate ,check-snapshot-input))
@@ -332,6 +412,7 @@ Fredrik \"PlaTFooT\" Salomonsson
     (let* ((parse-comma-option
             (lambda (input)
               (remove string-null? (string-split (option-ref options input "")  #\,))))
+           (type (string->symbol (option-ref options 'type "snapper")))
            (config (option-ref options 'config "root"))
            (sender (parse-comma-option 'sender))
            (receiver (parse-comma-option 'receiver))
@@ -343,7 +424,13 @@ Fredrik \"PlaTFooT\" Salomonsson
            (sender-dir (path-join test-dir config ".snapshots"))
            (receiver-root-dir (path-join test-dir "receiver"))
            (receiver-dir (path-join receiver-root-dir config))
-           (configfile (option-ref options 'configfile #f)))
+           (configfile (option-ref options 'configfile #f))
+           (create-snapshot-func (match type
+                                   ('denotebak create-denotebak-snapshot)
+                                   (_ create-snapper-snapshot)))
+           (make-snapshot-from-read (match type
+                                   ('denotebak make-snapshot-from-denotebak-read)
+                                   (_ make-snapshot-from-snapper-read))))
       ;; Needed for nftw to be able to read the directory
       (chmod test-dir #o744)
       (format #t "Test ~a~%" test-dir)
@@ -352,8 +439,8 @@ Fredrik \"PlaTFooT\" Salomonsson
       (format #t "  expected: ~a~%" expected)
       (let ((exit-status 0)
             (sender-snapshots
-             (map (lambda (id)
-                    (make-snapshot id #f 'valid))
+             (map (lambda (input)
+                    (make-snapshot-from input))
                   sender))
             (receiver-snapshots
              (map (lambda (input)
@@ -371,7 +458,7 @@ Fredrik \"PlaTFooT\" Salomonsson
         (mkdir sender-dir)
         (for-each
          (lambda (snapshot)
-           (create-snapper-snapshot
+           (create-snapshot-func
             (path-join sender-dir (snapshot-id snapshot))
             snapshot))
          sender-snapshots)
@@ -380,7 +467,7 @@ Fredrik \"PlaTFooT\" Salomonsson
         (mkdir receiver-dir)
         (for-each
          (lambda (snapshot)
-           (create-snapper-snapshot
+           (create-snapshot-func
             (path-join receiver-dir (snapshot-id snapshot))
             snapshot))
          receiver-snapshots)

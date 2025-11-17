@@ -35,6 +35,12 @@ case "$1" in
         # No input.
         echo 4
         ;;
+    snapshot-type)
+        # Return what type of snapshot this backend supports
+        #
+        # No input.
+        echo snapper
+        ;;
     list-snapshots)
         # List snapshots at location.
         #
