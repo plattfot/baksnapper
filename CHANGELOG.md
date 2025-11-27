@@ -12,7 +12,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Unreleased entries are located in [CHANGELOG.d](./CHANGELOG.d).
 
-## [2.4.1] - 2025-11-16
+## [2.5.0] - 2025-11-16
 ### Added
 - Interface to specify `SOURCE` and `DEST` explicitly.
 - `--source SOURCE` option, to override `SOURCE=` in configfile.
