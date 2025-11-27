@@ -21,3 +21,7 @@ jobs:
       run: mkdir -p build/{usr/bin,usr/lib,etc}
     - name: Build and install
       run: make install PREFIX=build
+    - name: Smoke test baksnapper
+      run: ./build/usr/bin/baksnapper --version
+    - name: Smoke test baksnapperd
+      run: ./build/usr/bin/baksnapperd --version

@@ -4,11 +4,7 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-major=2
-minor=5
-patch=0
-
-version=$major.$minor.$patch
+version=2.5.0
 
 read -rd '' help <<EOF
 Usage: $0 [OPTIONS...]
@@ -43,19 +39,20 @@ do
 key=$1
 case $key in
     -s|--short)
-        version=$major.$minor
+        result=${version%.*}
         shift
         ;;
     -M|--major)
-        version=$major
+        result=${version%%.*}
         shift
         ;;
     -m|--minor)
-        version=$minor
+        short=${version%.*}
+        result=${short#*.}
         shift
         ;;
     -p|--patch)
-        version=$patch
+        result=${version##*.}
         shift
         ;;
     -h|--help)
@@ -69,4 +66,4 @@ case $key in
 esac
 done
 
-echo $version
+echo "${result:-$version}"
