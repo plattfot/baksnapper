@@ -12,6 +12,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Unreleased entries are located in [CHANGELOG.d](./CHANGELOG.d).
 
+## [2.6.0] - 2025-11-26
+### Changed
+- Set version in scripts using meson/make. [#52](https://github.com/plattfot/baksnapper/issues/52)
+
 ## [2.5.0] - 2025-11-16
 ### Added
 - Interface to specify `SOURCE` and `DEST` explicitly.
