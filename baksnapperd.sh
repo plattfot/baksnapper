@@ -9,7 +9,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 read -rd '' version <<EOF
-baksnapperd (baksnapper) 2.4.0
+baksnapperd (baksnapper) @VERSION@
 Copyright (C) 2015-2025  Fredrik Salomonsson
 Copyright (C) 2021-2022  Nathan Dehnel
 Copyright (C) 2023       Juergen Gleiss

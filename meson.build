@@ -10,30 +10,34 @@ project(
 
 install_cmd = find_program('install')
 
-baksnapper = custom_target(
-  command: [install_cmd, '@INPUT@', '@OUTPUT@'],
+config_data = configuration_data({
+    'VERSION': meson.project_version(),
+})
+
+baksnapper = configure_file(
   input: 'baksnapper.sh',
   output: 'baksnapper',
+  configuration: config_data,
   install: true,
   install_dir: 'bin',
   install_mode: 'rwxr-xr-x',
   install_tag: 'runtime',
 )
 
-baksnapperd = custom_target(
-  command: [install_cmd, '@INPUT@', '@OUTPUT@'],
+baksnapperd = configure_file(
   input: 'baksnapperd.sh',
   output: 'baksnapperd',
+  configuration: config_data,
   install: true,
   install_dir: 'bin',
   install_mode: 'rwxr-xr-x',
   install_tag: 'runtime',
 )
 
-baksnapperd_denotebak = custom_target(
-  command: [install_cmd, '@INPUT@', '@OUTPUT@'],
+baksnapperd_denotebak = configure_file(
   input: 'baksnapperd-denotebak.sh',
   output: 'baksnapperd-denotebak',
+  configuration: config_data,
   install: true,
   install_dir: 'bin',
   install_mode: 'rwxr-xr-x',
@@ -90,53 +94,53 @@ test_env = environment()
 test_env.prepend('PATH', meson.current_source_dir() / 'tests/bin')
 test_env.set('MOCK_SSH_CONNECTION', '0')
 test_env.set('MOCK_SSH_KEY', 'foo.key=foo.example.com:bar.key=bar.example.com')
-test_env.set('MOCK_SSH_BAKSNAPPERD', baksnapperd[0].full_path())
+test_env.set('MOCK_SSH_BAKSNAPPERD', baksnapperd.full_path())
 
 denotebak_test_env = test_env
-denotebak_test_env.set('MOCK_SSH_BAKSNAPPERD', baksnapperd_denotebak[0].full_path())
+denotebak_test_env.set('MOCK_SSH_BAKSNAPPERD', baksnapperd_denotebak.full_path())
 
 runner = find_program('./tests/runner.scm')
 
 test_configuration = {
   'default': {
-    'DAEMON': baksnapperd[0].full_path(),
+    'DAEMON': baksnapperd.full_path(),
   },
   'latest': {
-    'DAEMON': baksnapperd[0].full_path(),
+    'DAEMON': baksnapperd.full_path(),
     'PRUNE': 'NO',
     'ALL': 'NO',
     'VERBOSE': 'NO',
     'LINK': 'YES',
   },
   'prune': {
-    'DAEMON': baksnapperd[0].full_path(),
+    'DAEMON': baksnapperd.full_path(),
     'PRUNE': 'YES',
     'ALL': 'NO',
     'VERBOSE': 'NO',
   },
   'all': {
-    'DAEMON': baksnapperd[0].full_path(),
+    'DAEMON': baksnapperd.full_path(),
     'ALL': 'YES',
     'VERBOSE': 'NO',
   },
   'denotebak-default': {
-    'DAEMON': baksnapperd_denotebak[0].full_path(),
+    'DAEMON': baksnapperd_denotebak.full_path(),
   },
   'denotebak-latest': {
-    'DAEMON': baksnapperd_denotebak[0].full_path(),
+    'DAEMON': baksnapperd_denotebak.full_path(),
     'PRUNE': 'NO',
     'ALL': 'NO',
     'VERBOSE': 'NO',
     'LINK': 'YES',
   },
   'denotebak-prune': {
-    'DAEMON': baksnapperd_denotebak[0].full_path(),
+    'DAEMON': baksnapperd_denotebak.full_path(),
     'PRUNE': 'YES',
     'ALL': 'NO',
     'VERBOSE': 'NO',
   },
   'denotebak-all': {
-    'DAEMON': baksnapperd_denotebak[0].full_path(),
+    'DAEMON': baksnapperd_denotebak.full_path(),
     'ALL': 'YES',
     'VERBOSE': 'NO',
   },
@@ -149,13 +153,12 @@ foreach test_entry: [
       '--expected', '3',
     ],
     'baksnapper-args': [
-      baksnapper[0].full_path(),
-      '--daemon', baksnapperd[0].full_path(),
+      baksnapper,
+      '--daemon', baksnapperd,
     ],
     'configfile': 'default',
     'configfile-baksnapper-args': [],
     'suite': ['backup'],
-    'depends': [baksnapperd],
     'env': test_env,
   },
   {
@@ -166,14 +169,13 @@ foreach test_entry: [
       '--expected-latest', '3',
     ],
     'baksnapper-args': [
-      baksnapper[0].full_path(),
-      '--daemon', baksnapperd[0].full_path(),
+      baksnapper,
+      '--daemon', baksnapperd,
       '--link',
     ],
     'configfile': 'latest',
     'configfile-baksnapper-args': [],
     'suite': ['latest'],
-    'depends': [baksnapperd],
     'env': test_env,
   },
   {
@@ -184,14 +186,13 @@ foreach test_entry: [
       '--expected', '1,2,3,6,8:p=6',
     ],
     'baksnapper-args': [
-      baksnapper[0].full_path(),
-      '--daemon', baksnapperd[0].full_path(),
+      baksnapper,
+      '--daemon', baksnapperd,
       '--prune',
     ],
     'configfile': 'prune',
     'configfile-baksnapper-args': [],
     'suite': ['prune'],
-    'depends': [baksnapperd],
     'env': test_env,
   },
   {
@@ -201,14 +202,13 @@ foreach test_entry: [
       '--expected', '2',
     ],
     'baksnapper-args': [
-      baksnapper[0].full_path(),
-      '--daemon', baksnapperd[0].full_path(),
+      baksnapper,
+      '--daemon', baksnapperd,
       '--snapshot', '2',
     ],
     'configfile': 'default',
     'configfile-baksnapper-args': [],
     'suite': ['backup'],
-    'depends': [baksnapperd],
     'env': test_env,
   },
   {
@@ -219,14 +219,13 @@ foreach test_entry: [
       '--expected', '2,3',
     ],
     'baksnapper-args': [
-      baksnapper[0].full_path(),
-      '--daemon', baksnapperd[0].full_path(),
+      baksnapper,
+      '--daemon', baksnapperd,
       '--delete', '1',
     ],
     'configfile': 'default',
     'configfile-baksnapper-args': [],
     'suite': ['delete'],
-    'depends': [baksnapperd],
     'env': test_env,
   },
   {
@@ -237,14 +236,13 @@ foreach test_entry: [
       '--expected', '2',
     ],
     'baksnapper-args': [
-      baksnapper[0].full_path(),
-      '--daemon', baksnapperd[0].full_path(),
+      baksnapper,
+      '--daemon', baksnapperd,
       '--delete', '1,3',
     ],
     'configfile': 'default',
     'configfile-baksnapper-args': [],
     'suite': ['delete'],
-    'depends': [baksnapperd],
     'env': test_env,
   },
   {
@@ -255,13 +253,12 @@ foreach test_entry: [
       '--expected', '64,66:p=64,76:p=66,83:p=76,91:p=83,92:p=83,93:p=92',
     ],
     'baksnapper-args': [
-      baksnapper[0].full_path(),
-      '--daemon', baksnapperd[0].full_path(),
+      baksnapper,
+      '--daemon', baksnapperd,
     ],
     'configfile': 'default',
     'configfile-baksnapper-args': [],
     'suite': ['backup'],
-    'depends': [baksnapperd],
     'env': test_env,
   },
   # https://github.com/plattfot/baksnapper/issues/27
@@ -273,14 +270,13 @@ foreach test_entry: [
       '--expected', '64,65:p=64,66:p=64,76:p=66,83:p=76,91:p=83,92:p=83,93:p=92',
     ],
     'baksnapper-args': [
-      baksnapper[0].full_path(),
-      '--daemon', baksnapperd[0].full_path(),
+      baksnapper,
+      '--daemon', baksnapperd,
       '--all',
     ],
     'configfile': 'all',
     'configfile-baksnapper-args': [],
     'suite': ['backup'],
-    'depends': [baksnapperd],
     'env': test_env,
   },
   # DeNotebak
@@ -296,13 +292,12 @@ foreach test_entry: [
       '--type', 'denotebak',
     ],
     'baksnapper-args': [
-      baksnapper[0].full_path(),
-      '--daemon', baksnapperd_denotebak[0].full_path(),
+      baksnapper,
+      '--daemon', baksnapperd_denotebak,
     ],
     'configfile': 'denotebak-default',
     'configfile-baksnapper-args': [],
     'suite': ['denotebak', 'backup'],
-    'depends': [baksnapperd_denotebak],
     'env': denotebak_test_env,
   },
   {
@@ -318,14 +313,13 @@ foreach test_entry: [
       '--type', 'denotebak',
     ],
     'baksnapper-args': [
-      baksnapper[0].full_path(),
-      '--daemon', baksnapperd_denotebak[0].full_path(),
+      baksnapper,
+      '--daemon', baksnapperd_denotebak,
       '--link',
     ],
     'configfile': 'denotebak-latest',
     'configfile-baksnapper-args': [],
     'suite': ['denotebak', 'latest'],
-    'depends': [baksnapperd_denotebak],
     'env': denotebak_test_env,
   },
   {
@@ -354,14 +348,13 @@ foreach test_entry: [
       '--type', 'denotebak',
     ],
     'baksnapper-args': [
-      baksnapper[0].full_path(),
-      '--daemon', baksnapperd_denotebak[0].full_path(),
+      baksnapper,
+      '--daemon', baksnapperd_denotebak,
       '--prune',
     ],
     'configfile': 'denotebak-prune',
     'configfile-baksnapper-args': [],
     'suite': ['denotebak', 'prune'],
-    'depends': [baksnapperd_denotebak],
     'env': denotebak_test_env,
   },
   {
@@ -376,14 +369,13 @@ foreach test_entry: [
       '--type', 'denotebak',
     ],
     'baksnapper-args': [
-      baksnapper[0].full_path(),
-      '--daemon', baksnapperd_denotebak[0].full_path(),
+      baksnapper,
+      '--daemon', baksnapperd_denotebak,
       '--snapshot', '20251025T150000',
     ],
     'configfile': 'denotebak-default',
     'configfile-baksnapper-args': [],
     'suite': ['denotebak', 'backup'],
-    'depends': [baksnapperd_denotebak],
     'env': denotebak_test_env,
   },
   {
@@ -403,14 +395,13 @@ foreach test_entry: [
       '--type', 'denotebak',
     ],
     'baksnapper-args': [
-      baksnapper[0].full_path(),
-      '--daemon', baksnapperd_denotebak[0].full_path(),
+      baksnapper,
+      '--daemon', baksnapperd_denotebak,
       '--delete', '20251025T140000',
     ],
     'configfile': 'denotebak-default',
     'configfile-baksnapper-args': [],
     'suite': ['denotebak', 'delete'],
-    'depends': [baksnapperd_denotebak],
     'env': denotebak_test_env,
   },
   {
@@ -429,14 +420,13 @@ foreach test_entry: [
       '--type', 'denotebak',
     ],
     'baksnapper-args': [
-      baksnapper[0].full_path(),
-      '--daemon', baksnapperd_denotebak[0].full_path(),
+      baksnapper,
+      '--daemon', baksnapperd_denotebak,
       '--delete', '20251025T140000,20251025T160000',
     ],
     'configfile': 'denotebak-default',
     'configfile-baksnapper-args': [],
     'suite': ['denotebak', 'delete'],
-    'depends': [baksnapperd_denotebak],
     'env': denotebak_test_env,
   },
   {
@@ -473,13 +463,12 @@ foreach test_entry: [
       '--type', 'denotebak',
     ],
     'baksnapper-args': [
-      baksnapper[0].full_path(),
-      '--daemon', baksnapperd_denotebak[0].full_path(),
+      baksnapper,
+      '--daemon', baksnapperd_denotebak,
     ],
     'configfile': 'denotebak-default',
     'configfile-baksnapper-args': [],
     'suite': ['denotebak', 'backup'],
-    'depends': [baksnapperd_denotebak],
     'env': denotebak_test_env,
   },
   {
@@ -518,14 +507,13 @@ foreach test_entry: [
       '--type', 'denotebak',
     ],
     'baksnapper-args': [
-      baksnapper[0].full_path(),
-      '--daemon', baksnapperd_denotebak[0].full_path(),
+      baksnapper,
+      '--daemon', baksnapperd_denotebak,
       '--all',
     ],
     'configfile': 'denotebak-all',
     'configfile-baksnapper-args': [],
     'suite': ['denotebak', 'backup'],
-    'depends': [baksnapperd_denotebak],
     'env': denotebak_test_env,
   },
 ]
@@ -660,9 +648,7 @@ foreach test_entry: [
                 ['--'] +
                 test_entry['baksnapper-args'] + conf['baksnapper-args'] +
                 ssh_key['args'] + baksnapper_args,
-          depends: [
-            baksnapper,
-          ] + test_entry['depends'] + test_depends,
+          depends: test_depends,
           suite: conf['suite'] + test_entry['suite'],
         )
       endforeach
@@ -671,21 +657,15 @@ foreach test_entry: [
 endforeach
 test(
   'not-enough-inputs',
-  baksnapper[0],
+  baksnapper,
   env: test_env,
-  depends: [
-    baksnapper,
-  ],
   should_fail: true,
 )
 
 test(
   'not-enough-inputs-src-dest',
-  baksnapper[0],
+  baksnapper,
   args: ['.'],
   env: test_env,
-  depends: [
-    baksnapper,
-  ],
   should_fail: true,
 )
