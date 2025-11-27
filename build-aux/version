@@ -4,7 +4,7 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-version=2.5.0
+version=2.6.0
 
 read -rd '' help <<EOF
 Usage: $0 [OPTIONS...]
