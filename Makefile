@@ -30,9 +30,13 @@ $(PREFIX_BIN) $(PREFIX_LIB)/systemd/system $(PREFIX_ETC)/baksnapper/example:
 .PHONY: install bin systemd etc
 install: bin systemd
 
+__root_dir=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+__version=$(shell $(__root_dir)build-aux/version)
 bin: | $(PREFIX_BIN)
-	@install  baksnapper.sh $|/baksnapper
-	@install  baksnapperd.sh $|/baksnapperd
+	@sed 's/@VERSION@/${__version}/' baksnapper.sh > $|/baksnapper
+	@chmod 744 $|/baksnapper
+	@sed 's/@VERSION@/${__version}/' baksnapperd.sh > $|/baksnapperd
+	@chmod 744 $|/baksnapperd
 
 systemd: etc | $(PREFIX_LIB)/systemd/system
 	@install --mode=644 systemd/baksnapper@.timer $|/
