@@ -4,6 +4,7 @@
 
 (use-modules
   (gnu packages bash)
+  (gnu packages guile)
   (gnu packages base)
   (gnu packages linux)
   (gnu packages)
@@ -43,7 +44,15 @@
                         #:recursive? #t
                         #:select? skip-git-and-meson-artifacts))
     (build-system meson-build-system)
-    (inputs (list bash util-linux))
+    (arguments
+     '(#:phases
+       (modify-phases %standard-phases
+         (add-after 'patch-source-shebangs 'patch-test-runner
+           (lambda _
+             (substitute* "tests/runner.scm"
+               (("/usr/bin/env -S guile (.*) -s" all args)
+                (string-append (which "guile") " -s\n" args))))))))
+    (inputs (list bash util-linux guile-3.0))
     (synopsis "Backup tool for snapper")
     (description
      "Baksnapper is a script for backing up snapshots created by the program
