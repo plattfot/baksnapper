@@ -154,6 +154,13 @@ case "$1" in
             error "link-latest: No suitable snapshots at $1 (${#snapshots[@]})"
         fi
         ;;
+    test-connection)
+        # A test to make sure this backend listen to commands.
+        #
+        # No input
+        # Always return 0 when called successfully.
+        exit 0
+        ;;
     --version)
         echo -e "$version"
         exit 0
