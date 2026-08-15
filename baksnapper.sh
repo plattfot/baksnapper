@@ -59,6 +59,8 @@ Options:
 --clean           Delete all incomplete backup snapshots for config.
                   Use if backup got interrupted.
 
+--list            Print out the source and dest snapshots then exit.
+
 --snapshot NUMBER Backup specific snapshot NUMBER, default is the last one.
 
 --type TYPE       Specify either to backup snapshots to a server
@@ -275,6 +277,7 @@ if ! _args=$(getopt --name "baksnapper" \
              --long all \
              --long delete-all \
              --long clean \
+             --long list \
              --long help \
              --long prune \
              --long verbose \
@@ -307,6 +310,10 @@ case $key in
         ;;
     --delete-all)
         p_command=delete-all
+        shift
+        ;;
+    --list)
+        p_command=list
         shift
         ;;
     # Options
@@ -897,9 +904,13 @@ case $p_command in
             esac
         done
         ;;
+    list)
+        echo "source snapshots: ${src_snapshots[*]}"
+        echo "dest snapshots: ${dest_snapshots[*]}"
+        ;;
     *) # Default to running the backup
         backup
-    ;;
+        ;;
 esac
 
 if [[ ${p_prune-0} == 1 ]]
