@@ -279,6 +279,23 @@ foreach test_entry: [
     'suite': ['backup'],
     'env': test_env,
   },
+  {
+    'name': 'list',
+    'runner-args': [
+      '--sender', '64,65,76,83,91,92,93',
+      '--receiver', '64,66:p=64,76:p=66,83:p=76,91:p=83,92:p=83',
+      '--expected', '64,66:p=64,76:p=66,83:p=76,91:p=83,92:p=83',
+    ],
+    'baksnapper-args': [
+      baksnapper,
+      '--daemon', baksnapperd,
+      '--list',
+    ],
+    'configfile': 'default',
+    'configfile-baksnapper-args': [],
+    'suite': ['backup'],
+    'env': test_env,
+  },
   # DeNotebak
   {
     'name': 'denotebak-default',
