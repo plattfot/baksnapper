@@ -752,6 +752,7 @@ function cleanup-broken-snapshots {
         if $receiver incomplete-snapshot "$dest_root" "$snapshot"
         then
             $receiver remove-broken-snapshot  "$dest_root" "$snapshot"
+            unset "common[$snapshot]"
         fi
     done
 }
