@@ -1,0 +1,2 @@
+### Added
+- `--list` command.
