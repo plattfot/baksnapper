@@ -296,6 +296,22 @@ foreach test_entry: [
     'suite': ['backup'],
     'env': test_env,
   },
+  {
+    'name': 'broken-last-snapshot',
+    'runner-args': [
+      '--sender', '0,1,6984,10288,11005,11457',
+      '--receiver', '1,6984:p=1,10288:p=6984,11005:p=10288,11457:p=11005:s=no-info',
+      '--expected', '1,6984:p=1,10288:p=6984,11005:p=10288,11457:p=11005',
+    ],
+    'baksnapper-args': [
+      baksnapper,
+      '--daemon', baksnapperd, '-v',
+    ],
+    'configfile': 'default',
+    'configfile-baksnapper-args': [],
+    'suite': ['backup'],
+    'env': test_env,
+  },
   # DeNotebak
   {
     'name': 'denotebak-default',
