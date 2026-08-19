@@ -566,6 +566,44 @@ fi
 
 snapshot_type=$sender_snapshot_type
 
+# Check if two snapshots are the same using arithmetic
+# 1 [in]: snapshot a
+# 2 [in]: snapshot b
+function snapshot-same-number {
+    (( "$1" == "$2" ))
+}
+
+# Check if snapshot a is older than b using arithmetic
+# 1 [in]: snapshot a
+# 2 [in]: snapshot b
+function snapshot-older-number {
+    (( "$1" < "$2" ))
+}
+
+
+# Check if two snapshots are the same using string comparison
+# 1 [in]: snapshot a
+# 2 [in]: snapshot b
+function snapshot-same-string {
+    [[ "$1" == "$2" ]]
+}
+
+# Check if snapshot a is older than b using string comparison
+# 1 [in]: snapshot a
+# 2 [in]: snapshot b
+function snapshot-older-string {
+    [[ "$1" < "$2" ]]
+}
+
+if [[ $snapshot_type == "snapper" ]]
+then
+    snapshot_same=snapshot-same-number
+    snapshot_older=snapshot-older-number
+else
+    snapshot_same=snapshot-same-string
+    snapshot_older=snapshot-older-string
+fi
+
 # Using a bitmap to represent where a snapshot is located:
 # 0b01 → exist at the source
 # 0b10 → exist at the destination
@@ -656,12 +694,12 @@ function compare-snapshots {
     # "sort -g" when getting the snapshots.
     while (( idx_src < num_src_snapshots && idx_dest < num_dest_snapshots ))
     do
-        if [[ "${src_snapshots[idx_src]}" == "${dest_snapshots[idx_dest]}" ]]
+        if $snapshot_same "${src_snapshots[idx_src]}" "${dest_snapshots[idx_dest]}"
         then
             common["${src_snapshots[idx_src]}"]=0b11
             ((++idx_src))
             ((++idx_dest))
-        elif [[ "${src_snapshots[idx_src]}" < "${dest_snapshots[idx_dest]}" ]]
+        elif $snapshot_older "${src_snapshots[idx_src]}" "${dest_snapshots[idx_dest]}"
         then
             only_in_src+=("${src_snapshots[idx_src]}")
             ((++idx_src))
@@ -825,8 +863,8 @@ function backup {
         local idx=${num_src_snapshots}-1
         for (( ; idx >= 0; --idx ))
         do
-            if [[ "${src_snapshots[idx]}" < "$snapshot" && \
-                      ${common[${src_snapshots[idx]}]} == 0b11 ]]
+            if ( $snapshot_older "${src_snapshots[idx]}" "$snapshot" ) && \
+                   [[ ${common[${src_snapshots[idx]}]} == 0b11 ]]
             then
                 break
             fi
@@ -859,7 +897,7 @@ function backup {
             local src_snapshot=${only_in_src[src_idx]}
             for (( ; idx < num_src_snapshots; ++idx ))
             do
-                if [[ "${src_snapshots[idx]}" == "$src_snapshot" ]]
+                if $snapshot_same "${src_snapshots[idx]}" "$src_snapshot"
                 then
                     break
                 fi
