@@ -12,6 +12,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Unreleased entries are located in [CHANGELOG.d](./CHANGELOG.d).
 
+## [2.7.0] - 2026-08-19
+### Added
+- `--list` command.
+- Specific comparison functions for the different backends. [#55](https://github.com/plattfot/baksnapper/issues/55)
+### Fixed
+- Common status not reset after removing broken snapshot, results in `snapshot exists` error. [#55](https://github.com/plattfot/baksnapper/issues/55)
+- Most likely baksnapper v2.6.0 tried to overwrite first snapshot. [#55](https://github.com/plattfot/baksnapper/issues/55)
+
 ## [2.6.1] - 2026-05-12
 ### Fixed
 - `Unrecognized command 'test-connection', bailing out!` when using `baksnapperd-denotebak`
